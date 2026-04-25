@@ -145,6 +145,40 @@ class VectorAmpClientTest {
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/s1/upload/complete");
     }
 
+    @Test void typedIngestionSourceBuildersSerializeSupportedSourceTypes() throws Exception {
+        server.enqueue(json("{\"id\":\"web\",\"name\":\"site\",\"type\":\"web\"}"));
+        server.enqueue(json("{\"id\":\"s3\",\"name\":\"bucket\",\"type\":\"s3\"}"));
+        server.enqueue(json("{\"id\":\"gd\",\"name\":\"drive\",\"type\":\"gdrive\"}"));
+        server.enqueue(json("{\"id\":\"fu\",\"name\":\"upload\",\"type\":\"file_upload\"}"));
+        server.enqueue(json("{\"id\":\"gen\",\"name\":\"generic\",\"type\":\"web\"}"));
+
+        client.ingestion().createWeb(WebSource.builder("site").url("https://example.com").crawlDepth(2).metadata("team", "docs").build());
+        client.ingestion().createS3(S3Source.builder("bucket", "docs-bucket").prefix("manuals/").region("us-east-1").build());
+        client.ingestion().createGoogleDrive(GoogleDriveSource.folder("drive", "folder-1"));
+        client.ingestion().createFileUpload(FileUploadSource.of("upload", "ds"));
+        client.ingestion().createSource(GenericSource.builder(SourceType.WEB, "generic").config("url", "https://vectoramp.com").build());
+
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"source_type\":\"web\"", "\"url\":\"https://example.com\"", "\"crawl_depth\":2", "\"team\":\"docs\"");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"source_type\":\"s3\"", "\"bucket\":\"docs-bucket\"", "\"prefix\":\"manuals/\"", "\"region\":\"us-east-1\"");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"source_type\":\"gdrive\"", "\"folder_id\":\"folder-1\"");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"source_type\":\"file_upload\"", "\"dataset_id\":\"ds\"", "\"storage_provider\":\"s3\"");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"source_type\":\"web\"", "\"name\":\"generic\"");
+    }
+
+    @Test void datasetIngestSourceAcceptsTypedSourceInputOrSourceId() throws Exception {
+        server.enqueue(json("{\"id\":\"ds\",\"name\":\"docs\"}"));
+        server.enqueue(json("{\"id\":\"src\",\"name\":\"site\",\"type\":\"web\"}"));
+        server.enqueue(json("{\"job_id\":\"job\",\"status\":\"pending\"}"));
+
+        Dataset dataset = client.datasets().get("ds");
+        assertThat(dataset.ingestSource(WebSource.of("site", "https://example.com")).getId()).isEqualTo("src");
+        assertThat(dataset.ingestSource("src").getJobId()).isEqualTo("job");
+
+        assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/ds");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"source_type\":\"web\"", "\"url\":\"https://example.com\"");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"source_id\":\"src\"", "\"dataset_id\":\"ds\"");
+    }
+
     @Test void askNonStreamingAndStreamingSse() throws Exception {
         server.enqueue(json("{\"answer\":\"42\",\"sources\":[],\"chunks\":[],\"metadata\":{}}"));
         server.enqueue(new MockResponse().setHeader("Content-Type", "text/event-stream").setBody("data: {\"chunk_type\":\"text\",\"content\":\"hi\",\"metadata\":{}}\n\ndata: {\"chunk_type\":\"done\",\"content\":\"\",\"metadata\":{}}\n\n"));

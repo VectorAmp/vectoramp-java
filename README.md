@@ -136,18 +136,56 @@ client.datasets().addTexts("dataset-uuid", java.util.List.of("hello world"));
 
 ```java
 Page<Source> sources = client.ingestion().listSources(50, 0);
-Source source = client.ingestion().createFileUploadSource("dataset-uuid", "docs-upload");
-IngestionJob job = client.ingestion().startJob(source.getId(), "dataset-uuid");
+
+Source web = client.ingestion().createWeb(
+    WebSource.builder("docs-site")
+        .url("https://docs.vectoramp.com")
+        .crawlDepth(2)
+        .build()
+);
+
+Source s3 = client.ingestion().createS3(
+    S3Source.builder("s3-docs", "my-docs-bucket")
+        .prefix("public/")
+        .region("us-east-1")
+        .build()
+);
+
+Source gdrive = client.ingestion().createGoogleDrive(
+    GoogleDriveSource.folder("drive-docs", "google-drive-folder-id")
+);
+
+Source uploadSource = client.ingestion().createFileUpload("dataset-uuid", "docs-upload");
+IngestionJob job = client.ingestion().startJob(web.getId(), "dataset-uuid");
+```
+
+Typed source helpers currently cover `web`, `s3`, `gdrive`, and `file_upload`. Use `GenericSource` as an escape hatch when the API exposes new config before the SDK adds a typed wrapper:
+
+```java
+Source custom = client.ingestion().createSource(
+    GenericSource.builder(SourceType.WEB, "custom-web")
+        .config("url", "https://example.com")
+        .metadata("owner", "docs")
+        .build()
+);
+```
+
+`Dataset` resource objects can create typed sources or start ingestion from an existing source id:
+
+```java
+Dataset dataset = client.datasets().get("dataset-uuid");
+Source source = dataset.ingestSource(WebSource.of("docs-site", "https://docs.vectoramp.com"));
+IngestionJob job = dataset.ingestSource(source.getId());
 ```
 
 File upload flow, where supported by the REST API:
 
 ```java
-UploadSession session = client.ingestion().initializeUpload(source.getId(), java.util.List.of(
+UploadSession session = client.ingestion().initializeUpload(uploadSource.getId(), java.util.List.of(
     new FileUpload("docs/whitepaper.pdf", 248120, "application/pdf")
 ));
 // PUT file bytes to each UploadTarget.getUploadUrl() using your HTTP client.
-client.ingestion().completeUpload(source.getId(), session.getJobId(), java.util.List.of(
+client.ingestion().completeUpload(uploadSource.getId(), session.getJobId(), java.util.List.of(
     session.getUploads().get(0).getFileId()
 ));
 ```

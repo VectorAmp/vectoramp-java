@@ -108,6 +108,11 @@ public class Dataset {
         return requireIngestion().createSource(request);
     }
 
+    /** Create a typed source configured for this dataset. Start it with {@link #ingestSource(Source)}. */
+    public Source ingestSource(IngestionSourceInput input) {
+        return requireIngestion().createSource(input);
+    }
+
     public IngestionJob ingestSource(String sourceId) {
         return requireIngestion().startJob(sourceId, requireId());
     }
@@ -128,6 +133,12 @@ public class Dataset {
     public Source createFileUploadSource(String name) {
         return requireIngestion().createFileUploadSource(requireId(), name);
     }
+
+    public Source createWebSource(WebSource source) { return requireIngestion().createWeb(source); }
+
+    public Source createS3Source(S3Source source) { return requireIngestion().createS3(source); }
+
+    public Source createGoogleDriveSource(GoogleDriveSource source) { return requireIngestion().createGoogleDrive(source); }
 
     private String requireId() {
         if (id == null || id.isBlank()) throw new VectorAmpException("Dataset resource is missing an id");

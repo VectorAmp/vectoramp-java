@@ -2,7 +2,7 @@ package com.vectoramp.models;
 
 import java.util.Map;
 
-public class CreateSourceRequest {
+public class CreateSourceRequest implements IngestionSourceInput {
     private final String sourceType;
     private final String name;
     private final String description;
@@ -18,8 +18,10 @@ public class CreateSourceRequest {
     }
 
     public static CreateSourceRequest fileUpload(String name, String datasetId) {
-        return new CreateSourceRequest("file_upload", name, "Direct file upload", Map.of("storage_provider", "s3", "sync_mode", "full"), Map.of("dataset_id", datasetId));
+        return FileUploadSource.of(name, datasetId).toCreateSourceRequest();
     }
+
+    @Override public CreateSourceRequest toCreateSourceRequest() { return this; }
 
     public String getSourceType() { return sourceType; }
     public String getName() { return name; }
