@@ -1,93 +1,188 @@
-# Java
+# VectorAmp Java SDK
 
+Java 11+ client for the public VectorAmp API.
 
+> This repository is Maven Central-ready, but packages are **not published** yet.
 
-## Getting started
+## Install
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+Until the first published release, build locally:
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.com/VectorAmp/SDK/Java.git
-git branch -M main
-git push -uf origin main
+```bash
+gradle clean build publishToMavenLocal
 ```
 
-## Integrate with your tools
+Then add it to a Gradle project:
 
-* [Set up project integrations](https://gitlab.com/VectorAmp/SDK/Java/-/settings/integrations)
+```gradle
+repositories { mavenLocal(); mavenCentral() }
 
-## Collaborate with your team
+dependencies {
+  implementation 'com.vectoramp:vectoramp-java:0.1.0-SNAPSHOT'
+}
+```
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+Future Maven Central coordinates:
 
-## Test and Deploy
+```gradle
+implementation 'com.vectoramp:vectoramp-java:<version>'
+```
 
-Use the built-in continuous integration in GitLab.
+## Quick start
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+```java
+import com.vectoramp.VectorAmpClient;
+import com.vectoramp.models.*;
 
-***
+try (VectorAmpClient client = VectorAmpClient.create(System.getenv("VECTORAMP_API_KEY"))) {
+    Dataset dataset = client.datasets().create(
+        "product-docs",
+        2560,
+        "cosine",
+        EmbeddingConfig.of("vectoramp", "Qwen/Qwen3-Embedding-4B")
+    );
 
-# Editing this README
+    dataset.addTexts(java.util.List.of(
+        "VectorAmp ships a high-performance SABLE vector index.",
+        "The API supports RAG over ingested datasets."
+    ));
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+    AskResponse answer = dataset.ask("What index does VectorAmp use?");
+    System.out.println(answer.getAnswer());
+}
+```
 
-## Suggestions for a good README
+## Configuration
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+The default base URL is `https://api.vectoramp.com`. Override it for development or tests:
 
-## Name
-Choose a self-explaining name for your project.
+```java
+VectorAmpClient client = VectorAmpClient.builder("va_api_key")
+    .baseUrl("https://api.vectoramp.com")
+    .build();
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+Authentication uses the public API-key header:
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```http
+X-API-Key: <api_key>
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+## Datasets
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+```java
+Page<Dataset> page = client.datasets().list(50, 0);
+Dataset dataset = client.datasets().get("dataset-uuid");
+client.datasets().delete("dataset-uuid");
+```
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+`create`, `get`, and `list` return `Dataset` resource objects. They keep the raw API payload (`getRawData()`), the dataset id, and bound SDK services so you can call instance methods without passing the id around:
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+```java
+Dataset dataset = client.datasets().get("dataset-uuid");
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+SearchResponse results = dataset.search(SearchRequest.text("release notes", 5));
+dataset.insert(java.util.List.of(VectorRecord.of("doc-1", java.util.List.of(0.1, 0.2), null)));
+dataset.addTexts(java.util.List.of("hello world"));
+AskResponse answer = dataset.ask("Summarize this dataset");
+UploadSession upload = dataset.ingestFiles("docs-upload", java.util.List.of(
+    new FileUpload("docs/whitepaper.pdf", 248120, "application/pdf")
+));
+dataset.delete();
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+The service-style methods remain supported for explicit id-based usage.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+Dataset creation intentionally **does not expose** an index-type option. The SDK always sends `index_type: "sable"`.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### Search
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+```java
+SearchResponse results = client.datasets().search(
+    "dataset-uuid",
+    SearchRequest.text("machine learning best practices", 10)
+        .includeDocuments(false)
+        .includeMetadata(true)
+);
+```
 
-## License
-For open source projects, say how it is licensed.
+Vector search:
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+```java
+SearchResponse results = client.datasets().search(
+    "dataset-uuid",
+    SearchRequest.vector(java.util.List.of(0.1, 0.2, 0.3), 5)
+        .includeDocuments(true)
+);
+```
+
+### Insert vectors
+
+```java
+InsertResponse inserted = client.datasets().insert("dataset-uuid", java.util.List.of(
+    VectorRecord.of("doc-001", java.util.List.of(0.1, 0.2, 0.3), java.util.Map.of("title", "Intro"))
+));
+```
+
+### Add text
+
+`addTexts` embeds text through `/datasets/{id}/embed`, then inserts vectors through `/datasets/{id}/insert` with text metadata.
+
+```java
+client.datasets().addTexts("dataset-uuid", java.util.List.of("hello world"));
+```
+
+## Ingestion
+
+```java
+Page<Source> sources = client.ingestion().listSources(50, 0);
+Source source = client.ingestion().createFileUploadSource("dataset-uuid", "docs-upload");
+IngestionJob job = client.ingestion().startJob(source.getId(), "dataset-uuid");
+```
+
+File upload flow, where supported by the REST API:
+
+```java
+UploadSession session = client.ingestion().initializeUpload(source.getId(), java.util.List.of(
+    new FileUpload("docs/whitepaper.pdf", 248120, "application/pdf")
+));
+// PUT file bytes to each UploadTarget.getUploadUrl() using your HTTP client.
+client.ingestion().completeUpload(source.getId(), session.getJobId(), java.util.List.of(
+    session.getUploads().get(0).getFileId()
+));
+```
+
+## Intelligence / RAG
+
+Non-streaming:
+
+```java
+AskResponse response = client.ask(
+    AskRequest.of("What are the key features?")
+        .allDatasets()
+        .topK(5)
+        .includeSources(true)
+);
+```
+
+Streaming SSE:
+
+```java
+try (java.util.stream.Stream<SseEvent> events = client.askStream(
+    AskRequest.of("Summarize the roadmap").datasetId("dataset-uuid")
+)) {
+    events.forEach(event -> System.out.print(event.getContent()));
+}
+```
+
+## Transport architecture
+
+Public services depend on a small `Transport` interface. The current implementation is REST/JSON via Java `HttpClient`; a future gRPC transport can be added without changing `client.datasets()`, `client.ingestion()`, or `client.ask()` usage.
+
+## Development
+
+```bash
+gradle clean check
+```
+
+CI runs the same command and publishes JUnit/Jacoco artifacts.
