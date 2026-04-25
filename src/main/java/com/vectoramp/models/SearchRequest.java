@@ -21,11 +21,19 @@ public class SearchRequest {
     private Boolean includeDocuments;
     private Boolean includeMetadata;
 
+    public static SearchRequest text(String queryText) {
+        return text(queryText, 10);
+    }
+
     public static SearchRequest text(String queryText, int topK) {
         SearchRequest request = new SearchRequest();
         request.queryText = queryText;
         request.topK = topK;
         return request;
+    }
+
+    public static SearchRequest vector(List<Double> query) {
+        return vector(query, 10);
     }
 
     public static SearchRequest vector(List<Double> query, int topK) {

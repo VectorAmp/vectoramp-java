@@ -17,6 +17,10 @@ public class CreateSourceRequest implements IngestionSourceInput {
         this.metadata = metadata;
     }
 
+    public static CreateSourceRequest fileUpload(String datasetId) {
+        return FileUploadSource.of(datasetId).toCreateSourceRequest();
+    }
+
     public static CreateSourceRequest fileUpload(String name, String datasetId) {
         return FileUploadSource.of(name, datasetId).toCreateSourceRequest();
     }

@@ -29,19 +29,29 @@ public final class IngestionClient extends ApiService {
 
     public Source createWeb(WebSource source) { return createSource(source); }
 
+    public Source createWeb(String url) { return createWeb(WebSource.of(url)); }
+
     public Source createWeb(String name, String url) { return createWeb(WebSource.of(name, url)); }
 
     public Source createS3(S3Source source) { return createSource(source); }
+
+    public Source createS3(String bucket) { return createS3(S3Source.of(bucket)); }
 
     public Source createS3(String name, String bucket, String prefix) { return createS3(S3Source.of(name, bucket, prefix)); }
 
     public Source createGoogleDrive(GoogleDriveSource source) { return createSource(source); }
 
+    public Source createGoogleDrive(String folderId) { return createGoogleDrive(GoogleDriveSource.folder(folderId)); }
+
     public Source createGoogleDrive(String name, String folderId) { return createGoogleDrive(GoogleDriveSource.folder(name, folderId)); }
 
     public Source createFileUpload(FileUploadSource source) { return createSource(source); }
 
+    public Source createFileUpload(String datasetId) { return createFileUpload(FileUploadSource.of(datasetId)); }
+
     public Source createFileUpload(String datasetId, String name) { return createFileUpload(FileUploadSource.of(name, datasetId)); }
+
+    public Source createFileUploadSource(String datasetId) { return createFileUpload(datasetId); }
 
     public Source createFileUploadSource(String datasetId, String name) {
         return createFileUpload(datasetId, name);
@@ -80,7 +90,7 @@ public final class IngestionClient extends ApiService {
     public UploadSession initializeUpload(String sourceId, List<FileUpload> files) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("files", files);
-        return post("/ingestion/sources/" + encodePath(sourceId) + "/upload/init", body, UploadSession.class);
+        return post("/ingestion/sources/" + encodePath(sourceId) + "/upload/init", body, UploadSession.class).attachSourceId(sourceId);
     }
 
     public IngestionJob completeUpload(String sourceId, String jobId, List<String> fileIds) {

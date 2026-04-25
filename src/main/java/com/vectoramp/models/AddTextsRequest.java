@@ -14,6 +14,10 @@ public class AddTextsRequest {
         this.metadata = metadata;
     }
 
+    public static AddTextsRequest of(String text) {
+        return of(List.of(text));
+    }
+
     public static AddTextsRequest of(List<String> texts) {
         return new AddTextsRequest(texts, null, null);
     }

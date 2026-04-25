@@ -18,6 +18,8 @@ public final class WebSource implements IngestionSourceInput {
     }
 
     public static Builder builder(String name) { return new Builder(name); }
+    public static Builder forUrl(String url) { return builder(GenericSource.defaultName(SourceType.WEB, url)).url(url); }
+    public static WebSource of(String url) { return forUrl(url).build(); }
     public static WebSource of(String name, String url) { return builder(name).url(url).build(); }
 
     public String getSourceType() { return SourceType.WEB; }

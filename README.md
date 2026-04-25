@@ -81,12 +81,12 @@ client.datasets().delete("dataset-uuid");
 ```java
 Dataset dataset = client.datasets().get("dataset-uuid");
 
-SearchResponse results = dataset.search(SearchRequest.text("release notes", 5));
+SearchResponse results = dataset.search("release notes");
 dataset.insert(java.util.List.of(VectorRecord.of("doc-1", java.util.List.of(0.1, 0.2), null)));
-dataset.addTexts(java.util.List.of("hello world"));
+dataset.addText("hello world");
 AskResponse answer = dataset.ask("Summarize this dataset");
-UploadSession upload = dataset.ingestFiles("docs-upload", java.util.List.of(
-    new FileUpload("docs/whitepaper.pdf", 248120, "application/pdf")
+UploadSession upload = dataset.ingestFiles(java.util.List.of(
+    FileUpload.of("docs/whitepaper.pdf", 248120, "application/pdf")
 ));
 dataset.delete();
 ```
@@ -98,9 +98,12 @@ Dataset creation intentionally **does not expose** an index-type option. The SDK
 ### Search
 
 ```java
-SearchResponse results = client.datasets().search(
+SearchResponse results = client.datasets().search("dataset-uuid", "machine learning best practices");
+
+// Add options only when you need them.
+SearchResponse filtered = client.datasets().search(
     "dataset-uuid",
-    SearchRequest.text("machine learning best practices", 10)
+    SearchRequest.text("machine learning best practices")
         .includeDocuments(false)
         .includeMetadata(true)
 );
@@ -111,7 +114,7 @@ Vector search:
 ```java
 SearchResponse results = client.datasets().search(
     "dataset-uuid",
-    SearchRequest.vector(java.util.List.of(0.1, 0.2, 0.3), 5)
+    SearchRequest.vector(java.util.List.of(0.1, 0.2, 0.3))
         .includeDocuments(true)
 );
 ```
@@ -129,7 +132,8 @@ InsertResponse inserted = client.datasets().insert("dataset-uuid", java.util.Lis
 `addTexts` embeds text through `/datasets/{id}/embed`, then inserts vectors through `/datasets/{id}/insert` with text metadata.
 
 ```java
-client.datasets().addTexts("dataset-uuid", java.util.List.of("hello world"));
+client.datasets().addText("dataset-uuid", "hello world");
+client.datasets().addTexts("dataset-uuid", java.util.List.of("hello", "world"));
 ```
 
 ## Ingestion
@@ -137,25 +141,25 @@ client.datasets().addTexts("dataset-uuid", java.util.List.of("hello world"));
 ```java
 Page<Source> sources = client.ingestion().listSources(50, 0);
 
-Source web = client.ingestion().createWeb(
+Source web = client.ingestion().createWeb("https://docs.vectoramp.com");
+Source s3 = client.ingestion().createS3("my-docs-bucket");
+Source gdrive = client.ingestion().createGoogleDrive("google-drive-folder-id");
+Source uploadSource = client.ingestion().createFileUpload("dataset-uuid");
+
+// Names and advanced config are still available when you need them.
+Source deepWeb = client.ingestion().createWeb(
     WebSource.builder("docs-site")
         .url("https://docs.vectoramp.com")
         .crawlDepth(2)
         .build()
 );
 
-Source s3 = client.ingestion().createS3(
+Source regionalS3 = client.ingestion().createS3(
     S3Source.builder("s3-docs", "my-docs-bucket")
         .prefix("public/")
         .region("us-east-1")
         .build()
 );
-
-Source gdrive = client.ingestion().createGoogleDrive(
-    GoogleDriveSource.folder("drive-docs", "google-drive-folder-id")
-);
-
-Source uploadSource = client.ingestion().createFileUpload("dataset-uuid", "docs-upload");
 IngestionJob job = client.ingestion().startJob(web.getId(), "dataset-uuid");
 ```
 
@@ -163,7 +167,7 @@ Typed source helpers currently cover `web`, `s3`, `gdrive`, and `file_upload`. U
 
 ```java
 Source custom = client.ingestion().createSource(
-    GenericSource.builder(SourceType.WEB, "custom-web")
+    GenericSource.builder(SourceType.WEB)
         .config("url", "https://example.com")
         .metadata("owner", "docs")
         .build()
@@ -174,20 +178,20 @@ Source custom = client.ingestion().createSource(
 
 ```java
 Dataset dataset = client.datasets().get("dataset-uuid");
-Source source = dataset.ingestSource(WebSource.of("docs-site", "https://docs.vectoramp.com"));
+Source source = dataset.ingestSource(WebSource.of("https://docs.vectoramp.com"));
 IngestionJob job = dataset.ingestSource(source.getId());
 ```
 
 File upload flow, where supported by the REST API:
 
 ```java
-UploadSession session = client.ingestion().initializeUpload(uploadSource.getId(), java.util.List.of(
-    new FileUpload("docs/whitepaper.pdf", 248120, "application/pdf")
+UploadSession session = dataset.ingestFiles(java.util.List.of(
+    FileUpload.of("docs/whitepaper.pdf", 248120, "application/pdf")
 ));
+// Or derive file name, size, and content type from a local path:
+// UploadSession session = dataset.ingestFiles(java.util.List.of(FileUpload.fromPath(java.nio.file.Path.of("docs/whitepaper.pdf"))));
 // PUT file bytes to each UploadTarget.getUploadUrl() using your HTTP client.
-client.ingestion().completeUpload(uploadSource.getId(), session.getJobId(), java.util.List.of(
-    session.getUploads().get(0).getFileId()
-));
+dataset.completeUpload(session);
 ```
 
 ## Intelligence / RAG
