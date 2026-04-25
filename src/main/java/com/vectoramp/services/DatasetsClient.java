@@ -9,20 +9,45 @@ import com.vectoramp.models.*;
 
 import java.util.*;
 
+/** Client for dataset lifecycle, vector search, embedding, and direct vector insertion APIs. */
 public final class DatasetsClient extends ApiService {
     private final IngestionClient ingestion;
     private final IntelligenceClient intelligence;
 
+    /**
+     * Creates a dataset client backed by the supplied transport.
+     *
+     * @param transport HTTP transport to use for API requests
+     */
     public DatasetsClient(Transport transport) { this(transport, null, null); }
 
+    /**
+     * Creates a dataset client and links helper clients onto returned dataset resources.
+     *
+     * @param transport HTTP transport to use for API requests
+     * @param ingestion optional ingestion client attached to returned datasets for convenience methods
+     * @param intelligence optional intelligence client attached to returned datasets for ask methods
+     */
     public DatasetsClient(Transport transport, IngestionClient ingestion, IntelligenceClient intelligence) {
         super(transport);
         this.ingestion = ingestion;
         this.intelligence = intelligence;
     }
 
+    /**
+     * Lists datasets using API defaults for pagination.
+     *
+     * @return page of datasets with total, limit, and offset
+     */
     public Page<Dataset> list() { return list(null, null); }
 
+    /**
+     * Lists datasets.
+     *
+     * @param limit optional maximum number of datasets; {@code null} uses the API default
+     * @param offset optional starting offset; {@code null} uses the API default
+     * @return page of datasets with total, limit, and offset
+     */
     public Page<Dataset> list(Integer limit, Integer offset) {
         JsonNode root = parseTree(transport.execute(new Transport.Request("GET", "/datasets", pageQuery(limit, offset), Collections.emptyMap(), null)).getBody());
         List<Dataset> datasets = new ArrayList<>();
@@ -32,39 +57,92 @@ public final class DatasetsClient extends ApiService {
         return new Page<>(datasets, root.path("total").asInt(), root.path("limit").asInt(), root.path("offset").asInt());
     }
 
+    /**
+     * Creates a SABLE dataset.
+     *
+     * @param name dataset display name
+     * @param dim vector dimensionality
+     * @param metric distance metric accepted by the API, for example {@code cosine}
+     * @param embedding embedding provider/model config used for text embedding
+     * @return created dataset resource
+     */
     public Dataset create(String name, int dim, String metric, EmbeddingConfig embedding) {
         return create(CreateDatasetRequest.builder(name, dim, metric, embedding).build());
     }
 
+    /**
+     * Creates a SABLE dataset. The SDK always sends {@code index_type=sable}; no other index type is exposed.
+     *
+     * @param request dataset creation request
+     * @return created dataset resource
+     */
     public Dataset create(CreateDatasetRequest request) {
         JsonNode node = post("/datasets", request, JsonNode.class);
         return toDatasetResource(node);
     }
 
+    /**
+     * Fetches a dataset by ID.
+     *
+     * @param datasetId dataset ID
+     * @return dataset resource
+     */
     public Dataset get(String datasetId) {
         JsonNode node = get("/datasets/" + encodePath(datasetId), Collections.emptyMap(), JsonNode.class);
         return toDatasetResource(node);
     }
 
+    /**
+     * Deletes a dataset.
+     *
+     * @param datasetId dataset ID
+     */
     public void delete(String datasetId) {
         super.delete("/datasets/" + encodePath(datasetId));
     }
 
+    /**
+     * Searches a dataset with text using API defaults, including {@code topK=10}.
+     *
+     * @param datasetId dataset ID
+     * @param query text query to embed and search
+     * @return search response with ranked results
+     */
     public SearchResponse search(String datasetId, String query) {
         return search(datasetId, SearchRequest.text(query));
     }
 
+    /**
+     * Searches a dataset.
+     *
+     * @param datasetId dataset ID
+     * @param request search request; optional fields omitted from JSON use API defaults
+     * @return search response with ranked results
+     */
     public SearchResponse search(String datasetId, SearchRequest request) {
         return post("/datasets/" + encodePath(datasetId) + "/search", request, SearchResponse.class);
     }
 
+    /**
+     * Inserts pre-computed vectors into a dataset.
+     *
+     * @param datasetId dataset ID
+     * @param vectors vector records with IDs, values, and optional metadata
+     * @return insert count response
+     */
     public InsertResponse insert(String datasetId, List<VectorRecord> vectors) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("vectors", vectors);
         return post("/datasets/" + encodePath(datasetId) + "/insert", body, InsertResponse.class);
     }
 
-    /** Embeds text through the dataset then inserts generated vectors with text metadata. */
+    /**
+     * Embeds text through the dataset and inserts generated vectors with text metadata.
+     *
+     * @param datasetId dataset ID
+     * @param request texts plus optional IDs and per-text metadata; missing IDs are generated UUIDs
+     * @return insert count response
+     */
     public InsertResponse addTexts(String datasetId, AddTextsRequest request) {
         Map<String, Object> embedBody = new LinkedHashMap<>();
         embedBody.put("texts", request.getTexts());
@@ -83,14 +161,35 @@ public final class DatasetsClient extends ApiService {
         return insert(datasetId, vectors);
     }
 
+    /**
+     * Embeds and inserts one text record with a generated vector ID.
+     *
+     * @param datasetId dataset ID
+     * @param text text to embed and store as metadata.text
+     * @return insert count response
+     */
     public InsertResponse addText(String datasetId, String text) {
         return addTexts(datasetId, AddTextsRequest.of(text));
     }
 
+    /**
+     * Embeds and inserts text records with generated vector IDs.
+     *
+     * @param datasetId dataset ID
+     * @param texts texts to embed and store as metadata.text
+     * @return insert count response
+     */
     public InsertResponse addTexts(String datasetId, List<String> texts) {
         return addTexts(datasetId, AddTextsRequest.of(texts));
     }
 
+    /**
+     * Embeds text with the dataset embedding configuration without inserting records.
+     *
+     * @param datasetId dataset ID
+     * @param texts texts to embed
+     * @return embeddings in the same order as {@code texts}
+     */
     public List<List<Double>> embed(String datasetId, List<String> texts) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("texts", texts);
