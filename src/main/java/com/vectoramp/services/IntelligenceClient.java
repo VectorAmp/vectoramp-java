@@ -19,18 +19,48 @@ import java.util.Spliterators;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+/** Client for VectorAmp intelligence question-answering APIs. */
 public final class IntelligenceClient extends ApiService {
+    /**
+     * Creates an intelligence client backed by the supplied transport.
+     *
+     * @param transport HTTP transport to use for API requests
+     */
     public IntelligenceClient(Transport transport) { super(transport); }
 
+    /**
+     * Runs a non-streaming intelligence query.
+     *
+     * @param query question or prompt text
+     * @return answer and optional source/chunk metadata
+     */
     public AskResponse ask(String query) { return ask(AskRequest.of(query)); }
 
+    /**
+     * Runs a non-streaming intelligence query. This method sets {@code stream=false} on the request.
+     *
+     * @param request query request; optional dataset, topK, includeSources, and conversation history are honored
+     * @return answer and optional source/chunk metadata
+     */
     public AskResponse ask(AskRequest request) {
         request.stream(false);
         return post("/intelligence/query", request, AskResponse.class);
     }
 
+    /**
+     * Runs an intelligence query as server-sent events.
+     *
+     * @param query question or prompt text
+     * @return ordered event stream; close it if not fully consumed
+     */
     public Stream<SseEvent> askStream(String query) { return askStream(AskRequest.of(query)); }
 
+    /**
+     * Runs an intelligence query as server-sent events. This method sets {@code stream=true} on the request.
+     *
+     * @param request query request; optional dataset, topK, includeSources, and conversation history are honored
+     * @return ordered event stream; close it if not fully consumed
+     */
     public Stream<SseEvent> askStream(AskRequest request) {
         request.stream(true);
         InputStream input = transport.stream(new Transport.Request("POST", "/intelligence/query", Collections.emptyMap(), Collections.singletonMap("Accept", "text/event-stream"), json(request)));

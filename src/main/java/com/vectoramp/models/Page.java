@@ -9,6 +9,14 @@ public class Page<T> {
     private final int limit;
     private final int offset;
 
+    /**
+     * Creates a pagination envelope.
+     *
+     * @param items page items
+     * @param total total matching records
+     * @param limit effective page limit
+     * @param offset effective page offset
+     */
     public Page(List<T> items, int total, int limit, int offset) {
         this.items = items;
         this.total = total;
@@ -16,8 +24,20 @@ public class Page<T> {
         this.offset = offset;
     }
 
+    /**
+     * @return items
+     */
     public List<T> getItems() { return items; }
+    /**
+     * @return total
+     */
     public int getTotal() { return total; }
+    /**
+     * @return limit
+     */
     public int getLimit() { return limit; }
+    /**
+     * @return offset
+     */
     public int getOffset() { return offset; }
 }

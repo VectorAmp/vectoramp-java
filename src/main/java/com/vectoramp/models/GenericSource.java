@@ -20,24 +20,51 @@ public final class GenericSource implements IngestionSourceInput {
         this.metadata = Map.copyOf(builder.metadata);
     }
 
+    /**
+     * Starts a generic source builder.
+     * @param sourceType API source type
+     * @param name source name
+     * @return source builder
+     */
     public static Builder builder(String sourceType, String name) {
         return new Builder(sourceType, name);
     }
 
+    /**
+     * Starts a generic source builder using the default name {@code <source-type>-source}.
+     * @param sourceType API source type
+     * @return source builder
+     */
     public static Builder builder(String sourceType) {
         return builder(sourceType, defaultName(sourceType));
     }
 
+    /**
+     * @return sourceType
+     */
     public String getSourceType() { return sourceType; }
+    /**
+     * @return name
+     */
     public String getName() { return name; }
+    /**
+     * @return description
+     */
     public String getDescription() { return description; }
+    /**
+     * @return config
+     */
     public Map<String, Object> getConfig() { return config; }
+    /**
+     * @return metadata
+     */
     public Map<String, Object> getMetadata() { return metadata; }
 
     @Override public CreateSourceRequest toCreateSourceRequest() {
         return new CreateSourceRequest(sourceType, name, description, config, metadata);
     }
 
+    /** Builder for GenericSource inputs. */
     public static final class Builder {
         private final String sourceType;
         private final String name;
@@ -50,11 +77,41 @@ public final class GenericSource implements IngestionSourceInput {
             this.name = name;
         }
 
+        /**
+     * Sets optional source description.
+     * @param description description text
+     * @return this builder
+     */
         public Builder description(String description) { this.description = description; return this; }
+        /**
+     * Adds an optional config value; null values are omitted.
+     * @param key config key
+     * @param value config value
+     * @return this builder
+     */
         public Builder config(String key, Object value) { put(config, key, value); return this; }
+        /**
+     * Adds optional config values; null values are omitted.
+     * @param values config values
+     * @return this builder
+     */
         public Builder config(Map<String, Object> values) { putAll(config, values); return this; }
+        /**
+     * Adds optional metadata; null values are omitted.
+     * @param key metadata key
+     * @param value metadata value
+     * @return this builder
+     */
         public Builder metadata(String key, Object value) { put(metadata, key, value); return this; }
+        /**
+     * Adds optional metadata values; null values are omitted.
+     * @param values metadata values
+     * @return this builder
+     */
         public Builder metadata(Map<String, Object> values) { putAll(metadata, values); return this; }
+        /**
+     * @return immutable generic source input
+     */
         public GenericSource build() { return new GenericSource(this); }
     }
 
