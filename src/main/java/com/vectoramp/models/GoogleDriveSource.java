@@ -18,6 +18,8 @@ public final class GoogleDriveSource implements IngestionSourceInput {
     }
 
     public static Builder builder(String name) { return new Builder(name); }
+    public static Builder forFolder(String folderId) { return builder(GenericSource.defaultName(SourceType.GOOGLE_DRIVE, folderId)).folderId(folderId); }
+    public static GoogleDriveSource folder(String folderId) { return forFolder(folderId).build(); }
     public static GoogleDriveSource folder(String name, String folderId) { return builder(name).folderId(folderId).build(); }
 
     public String getSourceType() { return SourceType.GOOGLE_DRIVE; }

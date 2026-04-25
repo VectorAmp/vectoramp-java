@@ -12,6 +12,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -61,12 +62,20 @@ public class Dataset {
         return this;
     }
 
+    public SearchResponse search(String query) {
+        return requireDatasets().search(requireId(), query);
+    }
+
     public SearchResponse search(SearchRequest request) {
         return requireDatasets().search(requireId(), request);
     }
 
     public InsertResponse insert(List<VectorRecord> vectors) {
         return requireDatasets().insert(requireId(), vectors);
+    }
+
+    public InsertResponse addText(String text) {
+        return requireDatasets().addText(requireId(), text);
     }
 
     public InsertResponse addTexts(List<String> texts) {
@@ -125,18 +134,40 @@ public class Dataset {
      * Creates a file-upload source for this dataset and initializes an upload session.
      * Upload bytes to the returned targets, then call {@link IngestionClient#completeUpload(String, String, List)}.
      */
+    public UploadSession ingestFiles(List<FileUpload> files) {
+        Source source = requireIngestion().createFileUploadSource(requireId());
+        return requireIngestion().initializeUpload(source.getId(), files);
+    }
+
     public UploadSession ingestFiles(String sourceName, List<FileUpload> files) {
         Source source = requireIngestion().createFileUploadSource(requireId(), sourceName);
         return requireIngestion().initializeUpload(source.getId(), files);
+    }
+
+    public IngestionJob completeUpload(UploadSession session) {
+        Objects.requireNonNull(session, "session");
+        return requireIngestion().completeUpload(session.getSourceId(), session.getJobId(), session.getUploads().stream()
+                .map(UploadSession.UploadTarget::getFileId)
+                .collect(Collectors.toList()));
+    }
+
+    public Source createFileUploadSource() {
+        return requireIngestion().createFileUploadSource(requireId());
     }
 
     public Source createFileUploadSource(String name) {
         return requireIngestion().createFileUploadSource(requireId(), name);
     }
 
+    public Source createWebSource(String url) { return requireIngestion().createWeb(url); }
+
     public Source createWebSource(WebSource source) { return requireIngestion().createWeb(source); }
 
+    public Source createS3Source(String bucket) { return requireIngestion().createS3(bucket); }
+
     public Source createS3Source(S3Source source) { return requireIngestion().createS3(source); }
+
+    public Source createGoogleDriveSource(String folderId) { return requireIngestion().createGoogleDrive(folderId); }
 
     public Source createGoogleDriveSource(GoogleDriveSource source) { return requireIngestion().createGoogleDrive(source); }
 

@@ -101,16 +101,20 @@ class VectorAmpClientTest {
         server.enqueue(json("{\"inserted\":1}"));
         server.enqueue(json("{\"answer\":\"yes\",\"sources\":[],\"chunks\":[],\"metadata\":{}}"));
         server.enqueue(json("{\"id\":\"src\",\"name\":\"upload\",\"type\":\"file_upload\"}"));
-        server.enqueue(json("{\"job_id\":\"job\",\"uploads\":[]}"));
+        server.enqueue(json("{\"job_id\":\"job\",\"uploads\":[{\"file_id\":\"f1\",\"file_name\":\"a.txt\",\"upload_url\":\"https://s3\"}]}"));
+        server.enqueue(json("{\"job_id\":\"job\",\"status\":\"pending\"}"));
         server.enqueue(json("{}"));
 
         Dataset dataset = client.datasets().get("ds");
         assertThat(dataset.getRawData().get("extra_field").asBoolean()).isTrue();
-        assertThat(dataset.search(SearchRequest.text("hello", 3)).getDatasetId()).isEqualTo("ds");
+        assertThat(dataset.search("hello").getDatasetId()).isEqualTo("ds");
         assertThat(dataset.insert(List.of(VectorRecord.of("v1", List.of(0.1, 0.2), null))).getInserted()).isEqualTo(1);
-        assertThat(dataset.addTexts(List.of("hello")).getInserted()).isEqualTo(1);
+        assertThat(dataset.addText("hello").getInserted()).isEqualTo(1);
         assertThat(dataset.ask("question").getAnswer()).isEqualTo("yes");
-        assertThat(dataset.ingestFiles("upload", List.of()).getJobId()).isEqualTo("job");
+        UploadSession upload = dataset.ingestFiles(List.of(FileUpload.of("a.txt", 2, "text/plain")));
+        assertThat(upload.getJobId()).isEqualTo("job");
+        assertThat(upload.getSourceId()).isEqualTo("src");
+        assertThat(dataset.completeUpload(upload).getStatus()).isEqualTo("pending");
         dataset.delete();
 
         assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/ds");
@@ -119,8 +123,9 @@ class VectorAmpClientTest {
         assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/ds/embed");
         assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/ds/insert");
         assertThat(server.takeRequest().getBody().readUtf8()).contains("\"dataset_id\":\"ds\"");
-        assertThat(server.takeRequest().getBody().readUtf8()).contains("file_upload", "dataset_id");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("file_upload", "dataset_id", "file-upload-ds");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/src/upload/init");
+        assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/src/upload/complete");
         assertThat(server.takeRequest().getMethod()).isEqualTo("DELETE");
     }
 
@@ -132,14 +137,15 @@ class VectorAmpClientTest {
         server.enqueue(json("{\"job_id\":\"j2\",\"status\":\"pending\"}"));
 
         assertThat(client.ingestion().listSources().getItems().get(0).getType()).isEqualTo("file_upload");
-        assertThat(client.ingestion().createFileUploadSource("ds", "upload").getId()).isEqualTo("s1");
+        assertThat(client.ingestion().createFileUploadSource("ds").getId()).isEqualTo("s1");
         assertThat(client.ingestion().startJob("s1", "ds").getJobId()).isEqualTo("j1");
-        UploadSession upload = client.ingestion().initializeUpload("s1", List.of(new FileUpload("a.txt", 2, "text/plain")));
+        UploadSession upload = client.ingestion().initializeUpload("s1", List.of(FileUpload.of("a.txt", 2, "text/plain")));
+        assertThat(upload.getSourceId()).isEqualTo("s1");
         assertThat(upload.getUploads().get(0).getFileId()).isEqualTo("f1");
         assertThat(client.ingestion().completeUpload("s1", "j2", List.of("f1")).getStatus()).isEqualTo("pending");
 
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources");
-        assertThat(server.takeRequest().getBody().readUtf8()).contains("file_upload", "dataset_id");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("file_upload", "dataset_id", "file-upload-ds");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/jobs");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/s1/upload/init");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/s1/upload/complete");
@@ -163,6 +169,23 @@ class VectorAmpClientTest {
         assertThat(server.takeRequest().getBody().readUtf8()).contains("\"source_type\":\"gdrive\"", "\"folder_id\":\"folder-1\"");
         assertThat(server.takeRequest().getBody().readUtf8()).contains("\"source_type\":\"file_upload\"", "\"dataset_id\":\"ds\"", "\"storage_provider\":\"s3\"");
         assertThat(server.takeRequest().getBody().readUtf8()).contains("\"source_type\":\"web\"", "\"name\":\"generic\"");
+    }
+
+    @Test void sourceConvenienceOverloadsGenerateDefaultNames() throws Exception {
+        server.enqueue(json("{\"id\":\"web\",\"name\":\"example.com-docs\",\"type\":\"web\"}"));
+        server.enqueue(json("{\"id\":\"s3\",\"name\":\"docs-bucket\",\"type\":\"s3\"}"));
+        server.enqueue(json("{\"id\":\"gd\",\"name\":\"folder-1\",\"type\":\"gdrive\"}"));
+        server.enqueue(json("{\"id\":\"fu\",\"name\":\"file-upload-ds\",\"type\":\"file_upload\"}"));
+
+        assertThat(client.ingestion().createWeb("https://example.com/docs").getId()).isEqualTo("web");
+        assertThat(client.ingestion().createS3("docs-bucket").getId()).isEqualTo("s3");
+        assertThat(client.ingestion().createGoogleDrive("folder-1").getId()).isEqualTo("gd");
+        assertThat(client.ingestion().createFileUpload("ds").getId()).isEqualTo("fu");
+
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"name\":\"example.com-docs\"", "\"url\":\"https://example.com/docs\"");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"name\":\"docs-bucket\"", "\"bucket\":\"docs-bucket\"");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"name\":\"folder-1\"", "\"folder_id\":\"folder-1\"");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"name\":\"file-upload-ds\"", "\"dataset_id\":\"ds\"");
     }
 
     @Test void datasetIngestSourceAcceptsTypedSourceInputOrSourceId() throws Exception {

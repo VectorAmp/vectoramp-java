@@ -24,6 +24,10 @@ public final class GenericSource implements IngestionSourceInput {
         return new Builder(sourceType, name);
     }
 
+    public static Builder builder(String sourceType) {
+        return builder(sourceType, defaultName(sourceType));
+    }
+
     public String getSourceType() { return sourceType; }
     public String getName() { return name; }
     public String getDescription() { return description; }
@@ -58,6 +62,22 @@ public final class GenericSource implements IngestionSourceInput {
         Objects.requireNonNull(value, name);
         if (value.isBlank()) throw new IllegalArgumentException(name + " must not be blank");
         return value;
+    }
+
+    static String defaultName(String sourceType) {
+        String normalized = requireText(sourceType, "sourceType").replace('_', '-');
+        return normalized + "-source";
+    }
+
+    static String defaultName(String sourceType, String identifier) {
+        String fallback = defaultName(sourceType);
+        if (identifier == null || identifier.isBlank()) return fallback;
+        String slug = identifier.trim()
+                .replaceFirst("^[a-zA-Z][a-zA-Z0-9+.-]*://", "")
+                .replaceAll("[^A-Za-z0-9._-]+", "-")
+                .replaceAll("^-+|-+$", "");
+        if (slug.length() > 48) slug = slug.substring(0, 48).replaceAll("[-._]+$", "");
+        return slug.isBlank() ? fallback : slug;
     }
 
     static void put(Map<String, Object> map, String key, Object value) {

@@ -16,7 +16,9 @@ public final class S3Source implements IngestionSourceInput {
         this.metadata = Map.copyOf(builder.metadata);
     }
 
+    public static Builder builder(String bucket) { return builder(GenericSource.defaultName(SourceType.S3, bucket), bucket); }
     public static Builder builder(String name, String bucket) { return new Builder(name, bucket); }
+    public static S3Source of(String bucket) { return builder(bucket).build(); }
     public static S3Source of(String name, String bucket, String prefix) { return builder(name, bucket).prefix(prefix).build(); }
 
     public String getSourceType() { return SourceType.S3; }

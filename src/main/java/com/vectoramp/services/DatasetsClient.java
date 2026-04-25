@@ -50,6 +50,10 @@ public final class DatasetsClient extends ApiService {
         super.delete("/datasets/" + encodePath(datasetId));
     }
 
+    public SearchResponse search(String datasetId, String query) {
+        return search(datasetId, SearchRequest.text(query));
+    }
+
     public SearchResponse search(String datasetId, SearchRequest request) {
         return post("/datasets/" + encodePath(datasetId) + "/search", request, SearchResponse.class);
     }
@@ -77,6 +81,10 @@ public final class DatasetsClient extends ApiService {
             vectors.add(VectorRecord.of(id, embeddings.get(i), metadata));
         }
         return insert(datasetId, vectors);
+    }
+
+    public InsertResponse addText(String datasetId, String text) {
+        return addTexts(datasetId, AddTextsRequest.of(text));
     }
 
     public InsertResponse addTexts(String datasetId, List<String> texts) {

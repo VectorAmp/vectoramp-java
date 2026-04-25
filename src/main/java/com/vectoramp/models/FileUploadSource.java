@@ -17,7 +17,12 @@ public final class FileUploadSource implements IngestionSourceInput {
     }
 
     public static Builder builder(String name, String datasetId) { return new Builder(name, datasetId); }
+    public static Builder builderForDataset(String datasetId) { return builder(defaultName(datasetId), datasetId); }
     public static FileUploadSource of(String name, String datasetId) { return builder(name, datasetId).build(); }
+    public static FileUploadSource of(String datasetId) { return builderForDataset(datasetId).build(); }
+    public static String defaultName(String datasetId) {
+        return "file-upload-" + GenericSource.defaultName(SourceType.FILE_UPLOAD, datasetId);
+    }
 
     public String getSourceType() { return SourceType.FILE_UPLOAD; }
     public String getName() { return name; }
