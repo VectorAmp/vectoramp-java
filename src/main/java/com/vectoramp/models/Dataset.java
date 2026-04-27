@@ -140,6 +140,36 @@ public class Dataset {
         return requireDatasets().search(requireId(), request);
     }
 
+
+    /**
+     * Lists retained source documents for this dataset using cursor pagination.
+     *
+     * @param limit optional maximum documents; null uses the API default
+     * @param cursor optional cursor from a previous page's nextCursor
+     * @param status optional document status filter
+     * @return cursor-paginated document page
+     */
+    public DatasetDocumentPage listDocuments(Integer limit, String cursor, String status) {
+        return requireDatasets().listDocuments(requireId(), limit, cursor, status);
+    }
+
+    /**
+     * Lists retained source documents for this dataset using API pagination defaults.
+     * @return cursor-paginated document page
+     */
+    public DatasetDocumentPage listDocuments() {
+        return requireDatasets().listDocuments(requireId());
+    }
+
+    /**
+     * Downloads retained original bytes for a source document in this dataset.
+     * @param documentId document ID returned by {@link #listDocuments()}
+     * @return raw document bytes
+     */
+    public byte[] downloadDocument(String documentId) {
+        return requireDatasets().downloadDocument(requireId(), documentId);
+    }
+
     /**
      * Inserts pre-computed vectors into this dataset.
      *
