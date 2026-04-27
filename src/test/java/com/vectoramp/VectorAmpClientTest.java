@@ -80,6 +80,31 @@ class VectorAmpClientTest {
         assertThat(server.takeRequest().getBody().readUtf8()).contains("vectors");
     }
 
+
+    @Test void datasetDocumentsListAndDownloadUseCursorAndRawBytes() throws Exception {
+        MockWebServer fileServer = new MockWebServer();
+        fileServer.start();
+        try {
+            byte[] expected = new byte[] {0, 1, (byte) 0xff, 'V', 'A'};
+            server.enqueue(json("{\"documents\":[{\"id\":\"doc1\",\"file_name\":\"a.pdf\",\"status\":\"ready\",\"download_available\":true}],\"next_cursor\":\"cur2\",\"limit\":2}"));
+            server.enqueue(new MockResponse().setResponseCode(302).setHeader("Location", fileServer.url("/raw/doc.bin")));
+            fileServer.enqueue(new MockResponse().setBody(new okio.Buffer().write(expected)));
+
+            DatasetDocumentPage page = client.datasets().listDocuments("ds1", 2, "cur1", "ready");
+            byte[] bytes = client.datasets().downloadDocument("ds1", "doc1");
+
+            assertThat(page.getDocuments()).hasSize(1);
+            assertThat(page.getDocuments().get(0).getId()).isEqualTo("doc1");
+            assertThat(page.getNextCursor()).isEqualTo("cur2");
+            assertThat(bytes).containsExactly(expected);
+            assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/ds1/documents?limit=2&cursor=cur1&status=ready");
+            assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/ds1/documents/doc1/download");
+            assertThat(fileServer.takeRequest().getPath()).isEqualTo("/raw/doc.bin");
+        } finally {
+            fileServer.shutdown();
+        }
+    }
+
     @Test void addTextsEmbedsThenInsertsTextMetadata() throws Exception {
         server.enqueue(json("{\"embeddings\":[[0.1,0.2],[0.3,0.4]]}"));
         server.enqueue(json("{\"inserted\":2}"));

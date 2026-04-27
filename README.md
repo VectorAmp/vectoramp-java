@@ -95,6 +95,28 @@ The service-style methods remain supported for explicit id-based usage.
 
 Dataset creation intentionally **does not expose** an index-type option. The SDK always sends `index_type: "sable"`.
 
+### Source documents
+
+Dataset document listing is cursor-based. Pass `getNextCursor()` into the next request and do not assume offsets or totals. Downloads return the retained original bytes and the default transport follows redirects to storage.
+
+```java
+DatasetDocumentPage docs = client.datasets().listDocuments("dataset-uuid", 50, null, "ready");
+for (DatasetDocument doc : docs.getDocuments()) {
+    if (Boolean.TRUE.equals(doc.getDownloadAvailable())) {
+        byte[] original = client.datasets().downloadDocument("dataset-uuid", doc.getId());
+    }
+}
+
+if (docs.getNextCursor() != null) {
+    DatasetDocumentPage next = client.datasets().listDocuments("dataset-uuid", 50, docs.getNextCursor(), "ready");
+}
+
+// Resource-style helpers are available too.
+Dataset dataset = client.datasets().get("dataset-uuid");
+DatasetDocumentPage page = dataset.listDocuments(25, null, null);
+byte[] raw = dataset.downloadDocument(page.getDocuments().get(0).getId());
+```
+
 ### Search
 
 ```java

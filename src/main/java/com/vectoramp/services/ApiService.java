@@ -42,6 +42,14 @@ abstract class ApiService {
         transport.execute(new Transport.Request("DELETE", path, Collections.emptyMap(), Collections.emptyMap(), null));
     }
 
+    protected byte[] download(String path) {
+        try (java.io.InputStream input = transport.stream(new Transport.Request("GET", path, Collections.emptyMap(), Collections.singletonMap("Accept", "*/*"), null))) {
+            return input.readAllBytes();
+        } catch (java.io.IOException e) {
+            throw new VectorAmpException("Failed to read VectorAmp download response", e);
+        }
+    }
+
     protected String json(Object body) {
         try {
             return MAPPER.writeValueAsString(body == null ? Collections.emptyMap() : body);
@@ -79,6 +87,14 @@ abstract class ApiService {
         Map<String, String> query = new LinkedHashMap<>();
         if (limit != null) query.put("limit", String.valueOf(limit));
         if (offset != null) query.put("offset", String.valueOf(offset));
+        return query;
+    }
+
+    protected static Map<String, String> documentListQuery(Integer limit, String cursor, String status) {
+        Map<String, String> query = new LinkedHashMap<>();
+        if (limit != null) query.put("limit", String.valueOf(limit));
+        if (cursor != null && !cursor.isBlank()) query.put("cursor", cursor);
+        if (status != null && !status.isBlank()) query.put("status", status);
         return query;
     }
 }

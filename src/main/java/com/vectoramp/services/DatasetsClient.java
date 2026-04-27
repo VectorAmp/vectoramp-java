@@ -101,6 +101,47 @@ public final class DatasetsClient extends ApiService {
         super.delete("/datasets/" + encodePath(datasetId));
     }
 
+
+    /**
+     * Lists retained source documents for a dataset using cursor pagination.
+     *
+     * @param datasetId dataset ID
+     * @param limit optional maximum documents; {@code null} uses the API default
+     * @param cursor optional cursor from a previous page's {@code next_cursor}
+     * @param status optional document status filter, for example {@code ready}
+     * @return cursor-paginated document page
+     */
+    public DatasetDocumentPage listDocuments(String datasetId, Integer limit, String cursor, String status) {
+        JsonNode root = parseTree(transport.execute(new Transport.Request("GET", "/datasets/" + encodePath(datasetId) + "/documents", documentListQuery(limit, cursor, status), Collections.emptyMap(), null)).getBody());
+        List<DatasetDocument> documents = MAPPER.convertValue(root.path("documents"), new TypeReference<List<DatasetDocument>>() {});
+        String nextCursor = root.path("next_cursor").isMissingNode() || root.path("next_cursor").isNull() ? null : root.path("next_cursor").asText();
+        Integer returnedLimit = root.path("limit").isMissingNode() || root.path("limit").isNull() ? limit : root.path("limit").asInt();
+        return new DatasetDocumentPage(documents, nextCursor, returnedLimit);
+    }
+
+    /**
+     * Lists retained source documents using API pagination defaults.
+     *
+     * @param datasetId dataset ID
+     * @return cursor-paginated document page
+     */
+    public DatasetDocumentPage listDocuments(String datasetId) {
+        return listDocuments(datasetId, null, null, null);
+    }
+
+    /**
+     * Downloads the retained original bytes for a dataset document.
+     *
+     * <p>The default transport follows redirects so callers receive the final raw object bytes.</p>
+     *
+     * @param datasetId dataset ID
+     * @param documentId document ID from {@link #listDocuments(String, Integer, String, String)}
+     * @return raw document bytes
+     */
+    public byte[] downloadDocument(String datasetId, String documentId) {
+        return download("/datasets/" + encodePath(datasetId) + "/documents/" + encodePath(documentId) + "/download");
+    }
+
     /**
      * Searches a dataset with text using API defaults, including {@code topK=10}.
      *
