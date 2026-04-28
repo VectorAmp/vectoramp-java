@@ -39,7 +39,7 @@ try (VectorAmpClient client = VectorAmpClient.create(System.getenv("VECTORAMP_AP
         "product-docs",
         2560,
         "cosine",
-        EmbeddingConfig.of("vectoramp", "Qwen/Qwen3-Embedding-4B")
+        EmbeddingConfig.of("vectoramp", "VectorAmp-Embedding-2560")
     );
 
     dataset.addTexts(java.util.List.of(
