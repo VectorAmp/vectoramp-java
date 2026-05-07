@@ -24,11 +24,32 @@ public class SearchRequest {
 
     /**
      * Creates a text search request with {@code topK=10}.
-     * @param queryText text to embed and search
+     * For hybrid indexes, this single text field lets the API generate the dense embedding
+     * and reuse the same text as the sparse query when the dataset embedding model is configured.
+     * @param queryText text/search_text to embed and search
      * @return search request
      */
     public static SearchRequest text(String queryText) {
         return text(queryText, 10);
+    }
+
+    /**
+     * Alias for {@link #text(String)} matching the public API's search_text terminology.
+     * @param searchText text/search_text to embed and search
+     * @return search request
+     */
+    public static SearchRequest searchText(String searchText) {
+        return text(searchText);
+    }
+
+    /**
+     * Alias for {@link #text(String, int)} matching the public API's search_text terminology.
+     * @param searchText text/search_text to embed and search
+     * @param topK maximum result count
+     * @return search request
+     */
+    public static SearchRequest searchText(String searchText, int topK) {
+        return text(searchText, topK);
     }
 
     /**
