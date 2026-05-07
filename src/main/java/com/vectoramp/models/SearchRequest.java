@@ -1,10 +1,12 @@
 package com.vectoramp.models;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.Map;
 
 /** Search request for text or vector dataset search. Optional fields omitted from JSON use API defaults. */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class SearchRequest {
     private List<Double> query;
     private String queryText;
