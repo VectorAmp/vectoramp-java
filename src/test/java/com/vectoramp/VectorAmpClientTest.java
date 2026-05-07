@@ -80,6 +80,16 @@ class VectorAmpClientTest {
         assertThat(server.takeRequest().getBody().readUtf8()).contains("vectors");
     }
 
+    @Test void searchTextAliasSendsSingleQueryTextFieldForHybridDatasets() throws Exception {
+        server.enqueue(json("{\"results\":[],\"dataset_id\":\"abc\"}"));
+
+        client.datasets().search("abc", SearchRequest.searchText("rare zebra quokka", 3).includeMetadata(true));
+
+        String body = server.takeRequest().getBody().readUtf8();
+        assertThat(body).contains("\"query_text\":\"rare zebra quokka\"", "\"top_k\":3");
+        assertThat(body).doesNotContain("sparse_query").doesNotContain("hybrid");
+    }
+
 
     @Test void datasetDocumentsListAndDownloadUseCursorAndRawBytes() throws Exception {
         MockWebServer fileServer = new MockWebServer();
