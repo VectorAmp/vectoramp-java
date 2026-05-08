@@ -102,6 +102,16 @@ public final class IngestionClient extends ApiService {
      */
     public Source createS3(String name, String bucket, String prefix) { return createS3(S3Source.of(name, bucket, prefix)); }
 
+    /** Creates a Google Cloud Storage source. */
+    public Source createGCS(GCSSource source) { return createSource(source); }
+    /** Creates a Google Cloud Storage source named from the bucket. */
+    public Source createGCS(String bucket) { return createGCS(GCSSource.of(bucket)); }
+
+    /** Creates a Jira source. */
+    public Source createJira(JiraSource source) { return createSource(source); }
+    /** Creates a Jira source named from the cloud id. */
+    public Source createJira(String cloudId) { return createJira(JiraSource.of(cloudId)); }
+
     /**
      * Creates a Google Drive source.
      * @param source typed Google Drive source input
