@@ -237,6 +237,90 @@ class VectorAmpClientTest {
         assertThat(server.takeRequest().getBody().readUtf8()).contains("\"source_id\":\"src\"", "\"dataset_id\":\"ds\"");
     }
 
+    @Test void typedSourceValueObjectsExposeRequestFieldsAndValidation() {
+        CreateSourceRequest raw = new CreateSourceRequest(
+                "future",
+                "custom",
+                "desc",
+                Map.of("endpoint", "https://example.com/feed"),
+                Map.of("team", "docs")
+        );
+        assertThat(raw.toCreateSourceRequest()).isSameAs(raw);
+        assertThat(raw.getSourceType()).isEqualTo("future");
+        assertThat(raw.getName()).isEqualTo("custom");
+        assertThat(raw.getDescription()).isEqualTo("desc");
+        assertThat(raw.getConfig()).containsEntry("endpoint", "https://example.com/feed");
+        assertThat(raw.getMetadata()).containsEntry("team", "docs");
+
+        assertThat(CreateSourceRequest.fileUpload("ds").getName()).isEqualTo("file-upload-ds");
+        assertThat(CreateSourceRequest.fileUpload("upload", "ds").getName()).isEqualTo("upload");
+        assertThat(FileUploadSource.builder("upload", "ds")
+                .storageProvider("gcs")
+                .syncMode("incremental")
+                .description("uploads")
+                .config("path", "incoming/")
+                .metadata("team", "docs")
+                .metadata(Map.of("owner", "eng"))
+                .build()
+                .toCreateSourceRequest()
+                .getConfig())
+                .containsEntry("storage_provider", "gcs")
+                .containsEntry("sync_mode", "incremental")
+                .containsEntry("path", "incoming/");
+
+        CreateSourceRequest web = WebSource.forUrl("https://docs.example.com/manual")
+                .description("docs")
+                .urls(List.of("https://docs.example.com/manual", "https://docs.example.com/api"))
+                .syncMode("full")
+                .metadata(Map.of("team", "docs"))
+                .build()
+                .toCreateSourceRequest();
+        assertThat(web.getSourceType()).isEqualTo(SourceType.WEB);
+        assertThat(web.getName()).isEqualTo("docs.example.com-manual");
+        assertThat(web.getConfig()).containsKeys("url", "urls", "sync_mode");
+        assertThat(web.getMetadata()).containsEntry("team", "docs");
+
+        assertThat(S3Source.builder("bucket")
+                .roleArn("arn:aws:iam::1:role/docs")
+                .syncMode("incremental")
+                .metadata("env", "test")
+                .build()
+                .toCreateSourceRequest()
+                .getConfig())
+                .containsEntry("bucket", "bucket")
+                .containsEntry("role_arn", "arn:aws:iam::1:role/docs");
+        assertThat(GoogleDriveSource.builder("drive")
+                .fileIds(List.of("file-1"))
+                .sharedDriveId("shared")
+                .config("include_shared_drives", true)
+                .build()
+                .toCreateSourceRequest()
+                .getConfig())
+                .containsEntry("file_ids", List.of("file-1"))
+                .containsEntry("shared_drive_id", "shared");
+
+        assertThat(GCSSource.of("bucket").getSourceType()).isEqualTo(SourceType.GCS);
+        assertThat(GCSSource.of("gcs-name", "bucket").toCreateSourceRequest().getConfig())
+                .containsEntry("bucket", "bucket");
+        assertThat(JiraSource.of("cloud").getSourceType()).isEqualTo(SourceType.JIRA);
+        assertThat(JiraSource.of("jira-name", "cloud", List.of("ENG"))
+                .toCreateSourceRequest()
+                .getConfig())
+                .containsEntry("cloud_id", "cloud")
+                .containsEntry("project_keys", List.of("ENG"));
+
+        assertThat(GenericSource.builder("future")
+                .description("custom")
+                .config(Map.of("a", 1))
+                .metadata(Map.of("m", true))
+                .build()
+                .toCreateSourceRequest()
+                .getName())
+                .isEqualTo("future-source");
+        assertThatThrownBy(() -> GenericSource.builder(" ", "x").build())
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     @Test void askNonStreamingAndStreamingSse() throws Exception {
         server.enqueue(json("{\"answer\":\"42\",\"sources\":[],\"chunks\":[],\"metadata\":{}}"));
         server.enqueue(new MockResponse().setHeader("Content-Type", "text/event-stream").setBody("data: {\"chunk_type\":\"text\",\"content\":\"hi\",\"metadata\":{}}\n\ndata: {\"chunk_type\":\"done\",\"content\":\"\",\"metadata\":{}}\n\n"));
