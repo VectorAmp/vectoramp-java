@@ -185,7 +185,7 @@ Source regionalS3 = client.ingestion().createS3(
 IngestionJob job = client.ingestion().startJob(web.getId(), "dataset-uuid");
 ```
 
-Typed source helpers currently cover `web`, `s3`, `gdrive`, and `file_upload`. Use `GenericSource` as an escape hatch when the API exposes new config before the SDK adds a typed wrapper:
+Typed source helpers currently cover `web`, `s3`, `gcs`, `gdrive`, `file_upload`, and `jira`. Use `GenericSource` as an escape hatch when the API exposes new config before the SDK adds a typed wrapper:
 
 ```java
 Source custom = client.ingestion().createSource(
