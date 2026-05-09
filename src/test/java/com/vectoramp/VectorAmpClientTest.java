@@ -168,12 +168,14 @@ class VectorAmpClientTest {
         server.enqueue(json("{\"sources\":[{\"id\":\"s1\",\"name\":\"upload\",\"type\":\"file_upload\"}],\"total\":1,\"limit\":50,\"offset\":0}"));
         server.enqueue(json("{\"id\":\"s1\",\"name\":\"upload\",\"type\":\"file_upload\"}"));
         server.enqueue(json("{\"job_id\":\"j1\",\"status\":\"pending\"}"));
+        server.enqueue(json("{\"job_id\":\"j3\",\"status\":\"pending\"}"));
         server.enqueue(json("{\"job_id\":\"j2\",\"uploads\":[{\"file_id\":\"f1\",\"file_name\":\"a.txt\",\"upload_url\":\"https://s3\"}]}"));
         server.enqueue(json("{\"job_id\":\"j2\",\"status\":\"pending\"}"));
 
         assertThat(client.ingestion().listSources().getItems().get(0).getType()).isEqualTo("file_upload");
         assertThat(client.ingestion().createFileUploadSource("ds").getId()).isEqualTo("s1");
         assertThat(client.ingestion().startJob("s1", "ds").getJobId()).isEqualTo("j1");
+        assertThat(client.ingestion().retryJob("j1").getJobId()).isEqualTo("j3");
         UploadSession upload = client.ingestion().initializeUpload("s1", List.of(FileUpload.of("a.txt", 2, "text/plain")));
         assertThat(upload.getSourceId()).isEqualTo("s1");
         assertThat(upload.getUploads().get(0).getFileId()).isEqualTo("f1");
@@ -182,6 +184,7 @@ class VectorAmpClientTest {
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources");
         assertThat(server.takeRequest().getBody().readUtf8()).contains("file_upload", "dataset_id", "file-upload-ds");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/jobs");
+        assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/jobs/j1/retry");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/s1/upload/init");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/s1/upload/complete");
     }

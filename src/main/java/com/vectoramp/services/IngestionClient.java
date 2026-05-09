@@ -224,6 +224,15 @@ public final class IngestionClient extends ApiService {
     }
 
     /**
+     * Queues a fresh full-rerun job from an eligible failed or cancelled ingestion job.
+     * @param jobId original job ID
+     * @return newly queued retry job
+     */
+    public IngestionJob retryJob(String jobId) {
+        return post("/ingestion/jobs/" + encodePath(jobId) + "/retry", Collections.emptyMap(), IngestionJob.class);
+    }
+
+    /**
      * Cancels an ingestion job.
      * @param jobId job ID
      */
