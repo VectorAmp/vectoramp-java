@@ -339,6 +339,55 @@ class VectorAmpClientTest {
         assertThat(stream.getBody().readUtf8()).contains("\"stream\":true");
     }
 
+    @Test void schedulesCrudAndTrigger() throws Exception {
+        server.enqueue(json("{\"schedules\":[{\"id\":\"sch_1\",\"cron\":\"0 * * * *\",\"enabled\":true}],\"total\":1,\"limit\":10,\"offset\":0}"));
+        server.enqueue(json("{\"id\":\"sch_1\",\"cron\":\"0 * * * *\",\"enabled\":true}"));
+        server.enqueue(json("{\"id\":\"sch_2\",\"cron\":\"0 0 * * *\",\"enabled\":true}").setResponseCode(201));
+        server.enqueue(json("{\"id\":\"sch_2\",\"cron\":\"0 0 * * *\",\"enabled\":false}"));
+        server.enqueue(json("{\"deleted\":true}"));
+        server.enqueue(json("{\"job_id\":\"job_42\"}").setResponseCode(202));
+
+        Page<Schedule> page = client.schedules().list(10, 0);
+        assertThat(page.getTotal()).isEqualTo(1);
+        assertThat(page.getItems().get(0).getId()).isEqualTo("sch_1");
+        assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/schedules?limit=10&offset=0");
+
+        Schedule one = client.schedules().get("sch_1");
+        assertThat(one.getCron()).isEqualTo("0 * * * *");
+        assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/schedules/sch_1");
+
+        Schedule created = client.schedules().create(CreateScheduleRequest.builder()
+                .sourceId("src_1")
+                .datasetId("ds_1")
+                .cron("0 0 * * *")
+                .timezone("UTC")
+                .build());
+        assertThat(created.getId()).isEqualTo("sch_2");
+        RecordedRequest createReq = server.takeRequest();
+        assertThat(createReq.getPath()).isEqualTo("/ingestion/schedules");
+        String createBody = createReq.getBody().readUtf8();
+        assertThat(createBody).contains("\"source_id\":\"src_1\"");
+        assertThat(createBody).contains("\"dataset_id\":\"ds_1\"");
+        assertThat(createBody).contains("\"cron\":\"0 0 * * *\"");
+        assertThat(createBody).contains("\"timezone\":\"UTC\"");
+
+        Schedule updated = client.schedules().update("sch_2", UpdateScheduleRequest.builder().enabled(false).build());
+        assertThat(updated.isEnabled()).isFalse();
+        RecordedRequest updateReq = server.takeRequest();
+        assertThat(updateReq.getMethod()).isEqualTo("PATCH");
+        assertThat(updateReq.getBody().readUtf8()).isEqualTo("{\"enabled\":false}");
+
+        client.schedules().delete("sch_2");
+        RecordedRequest deleteReq = server.takeRequest();
+        assertThat(deleteReq.getMethod()).isEqualTo("DELETE");
+
+        TriggerScheduleResponse trig = client.schedules().trigger("sch_1");
+        assertThat(trig.getJobId()).isEqualTo("job_42");
+        RecordedRequest trigReq = server.takeRequest();
+        assertThat(trigReq.getPath()).isEqualTo("/ingestion/schedules/sch_1/trigger");
+        assertThat(trigReq.getMethod()).isEqualTo("POST");
+    }
+
     @Test void apiErrorsThrowUsefulException() {
         server.enqueue(new MockResponse().setResponseCode(401).setBody("bad key"));
         assertThatThrownBy(() -> client.datasets().list()).isInstanceOf(VectorAmpApiException.class).hasMessageContaining("401").hasMessageContaining("bad key");

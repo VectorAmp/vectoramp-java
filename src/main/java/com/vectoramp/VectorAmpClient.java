@@ -8,6 +8,7 @@ import com.vectoramp.models.SseEvent;
 import com.vectoramp.services.DatasetsClient;
 import com.vectoramp.services.IngestionClient;
 import com.vectoramp.services.IntelligenceClient;
+import com.vectoramp.services.SchedulesClient;
 
 import java.net.URI;
 import java.time.Duration;
@@ -29,6 +30,7 @@ public final class VectorAmpClient implements AutoCloseable {
     private final DatasetsClient datasets;
     private final IngestionClient ingestion;
     private final IntelligenceClient intelligence;
+    private final SchedulesClient schedules;
 
     private VectorAmpClient(Builder builder) {
         this.transport = builder.transport != null
@@ -36,6 +38,7 @@ public final class VectorAmpClient implements AutoCloseable {
                 : new RestTransport(URI.create(builder.baseUrl), builder.apiKey, builder.timeout);
         this.ingestion = new IngestionClient(transport);
         this.intelligence = new IntelligenceClient(transport);
+        this.schedules = new SchedulesClient(transport);
         this.datasets = new DatasetsClient(transport, ingestion, intelligence);
     }
 
@@ -68,6 +71,11 @@ public final class VectorAmpClient implements AutoCloseable {
      * @return ingestion source, job, and file-upload operations client
      */
     public IngestionClient ingestion() { return ingestion; }
+
+    /**
+     * @return recurring ingestion schedule operations client
+     */
+    public SchedulesClient schedules() { return schedules; }
 
     /**
      * Runs a non-streaming intelligence query across the API default dataset scope.

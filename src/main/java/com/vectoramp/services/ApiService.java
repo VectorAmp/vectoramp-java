@@ -38,6 +38,10 @@ abstract class ApiService {
         return parse(transport.execute(new Transport.Request("POST", path, Collections.emptyMap(), Collections.emptyMap(), json(body))).getBody(), responseType);
     }
 
+    protected <T> T patch(String path, Object body, Class<T> responseType) {
+        return parse(transport.execute(new Transport.Request("PATCH", path, Collections.emptyMap(), Collections.emptyMap(), json(body))).getBody(), responseType);
+    }
+
     protected void delete(String path) {
         transport.execute(new Transport.Request("DELETE", path, Collections.emptyMap(), Collections.emptyMap(), null));
     }
