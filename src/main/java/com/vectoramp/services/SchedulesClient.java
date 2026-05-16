@@ -92,7 +92,7 @@ public final class SchedulesClient extends ApiService {
      */
     public void delete(String scheduleId) {
         Objects.requireNonNull(scheduleId, "scheduleId");
-        delete("/ingestion/schedules/" + scheduleId);
+        super.delete("/ingestion/schedules/" + scheduleId);
     }
 
     /**
