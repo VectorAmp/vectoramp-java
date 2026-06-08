@@ -128,6 +128,7 @@ SearchResponse filtered = client.datasets().search(
     SearchRequest.text("machine learning best practices")
         .includeDocuments(false)
         .includeMetadata(true)
+        .rerank(RerankConfig.enabled()) // vectoramp / VectorAmp-Rerank-v1
 );
 ```
 

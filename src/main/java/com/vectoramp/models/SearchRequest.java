@@ -23,6 +23,7 @@ public class SearchRequest {
     private Boolean includeEmbeddings;
     private Boolean includeDocuments;
     private Boolean includeMetadata;
+    private Object rerank;
 
     /**
      * Creates a text search request with {@code topK=10}.
@@ -145,6 +146,18 @@ public class SearchRequest {
      * @return this request
      */
     public SearchRequest rerankDepthOverride(int value) { this.rerankDepthOverride = value; return this; }
+    /**
+     * Enables or disables semantic reranking using VectorAmp defaults.
+     * @param enabled true to rerank results
+     * @return this request
+     */
+    public SearchRequest rerank(boolean enabled) { this.rerank = enabled; return this; }
+    /**
+     * Sets rerank options. Only enabled is required; provider defaults to vectoramp and model to VectorAmp-Rerank-v1.
+     * @param config rerank configuration
+     * @return this request
+     */
+    public SearchRequest rerank(RerankConfig config) { this.rerank = config; return this; }
 
     /**
      * @return query
@@ -206,4 +219,8 @@ public class SearchRequest {
      * @return includeMetadata
      */
     public Boolean getIncludeMetadata() { return includeMetadata; }
+    /**
+     * @return rerank option; Boolean or RerankConfig
+     */
+    public Object getRerank() { return rerank; }
 }

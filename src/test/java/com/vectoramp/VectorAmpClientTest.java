@@ -69,24 +69,24 @@ class VectorAmpClientTest {
 
         assertThat(client.datasets().get("abc").getName()).isEqualTo("n");
         client.datasets().delete("abc");
-        SearchResponse search = client.datasets().search("abc", SearchRequest.text("hello", 5).includeDocuments(false).includeMetadata(true));
+        SearchResponse search = client.datasets().search("abc", SearchRequest.text("hello", 5).includeDocuments(false).includeMetadata(true).rerank(true));
         InsertResponse insert = client.datasets().insert("abc", List.of(VectorRecord.of("v1", List.of(0.1, 0.2), Map.of("a", "b")), VectorRecord.of("v2", List.of(0.3, 0.4), null)));
 
         assertThat(search.getResults().get(0).getScore()).isEqualTo(0.9);
         assertThat(insert.getInserted()).isEqualTo(2);
         assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/abc");
         assertThat(server.takeRequest().getMethod()).isEqualTo("DELETE");
-        assertThat(server.takeRequest().getBody().readUtf8()).contains("query_text", "include_documents", "include_metadata");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("query_text", "include_documents", "include_metadata", "\"rerank\":true");
         assertThat(server.takeRequest().getBody().readUtf8()).contains("vectors");
     }
 
     @Test void searchTextAliasSendsSingleQueryTextFieldForHybridDatasets() throws Exception {
         server.enqueue(json("{\"results\":[],\"dataset_id\":\"abc\"}"));
 
-        client.datasets().search("abc", SearchRequest.searchText("rare zebra quokka", 3).includeMetadata(true));
+        client.datasets().search("abc", SearchRequest.searchText("rare zebra quokka", 3).includeMetadata(true).rerank(RerankConfig.enabled()));
 
         String body = server.takeRequest().getBody().readUtf8();
-        assertThat(body).contains("\"query_text\":\"rare zebra quokka\"", "\"top_k\":3");
+        assertThat(body).contains("\"query_text\":\"rare zebra quokka\"", "\"top_k\":3", "\"rerank\":{\"enabled\":true}");
         assertThat(body).doesNotContain("sparse_query").doesNotContain("hybrid");
     }
 
