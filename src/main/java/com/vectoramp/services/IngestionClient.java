@@ -113,6 +113,28 @@ public final class IngestionClient extends ApiService {
     public Source createJira(String cloudId) { return createJira(JiraSource.of(cloudId)); }
 
     /**
+     * Creates a Confluence source.
+     * @param source typed Confluence source input
+     * @return created source
+     */
+    public Source createConfluence(ConfluenceSource source) { return createSource(source); }
+
+    /**
+     * Creates a Confluence source named from the Atlassian cloud id.
+     * @param cloudId Atlassian OAuth cloud/site id
+     * @return created source
+     */
+    public Source createConfluence(String cloudId) { return createConfluence(ConfluenceSource.of(cloudId)); }
+
+    /**
+     * Creates a named Confluence source from the Atlassian cloud id.
+     * @param name source name
+     * @param cloudId Atlassian OAuth cloud/site id
+     * @return created source
+     */
+    public Source createConfluence(String name, String cloudId) { return createConfluence(ConfluenceSource.of(name, cloudId)); }
+
+    /**
      * Creates a Google Drive source.
      * @param source typed Google Drive source input
      * @return created source

@@ -61,6 +61,147 @@ class VectorAmpClientTest {
         assertThat(req.getBody().readUtf8()).contains("\"index_type\":\"sable\"").doesNotContain("hnsw");
     }
 
+    @Test void createDatasetWithOnlyNameUsesDefaults() throws Exception {
+        server.enqueue(json("{\"id\":\"ds1\",\"name\":\"docs\",\"dim\":2560,\"metric\":\"cosine\",\"index_type\":\"sable\"}"));
+
+        Dataset dataset = client.datasets().create("docs");
+
+        assertThat(dataset.getId()).isEqualTo("ds1");
+        String body = server.takeRequest().getBody().readUtf8();
+        assertThat(body).contains("\"name\":\"docs\"");
+        assertThat(body).contains("\"dim\":2560");
+        assertThat(body).contains("\"metric\":\"cosine\"");
+        assertThat(body).contains("\"index_type\":\"sable\"");
+        assertThat(body).contains("\"provider\":\"vectoramp\"");
+        assertThat(body).contains("\"model\":\"VectorAmp-Embedding-4B\"");
+        // dim is sent as a JSON number, never as dimension, and hybrid is omitted by default.
+        assertThat(body).doesNotContain("dimension").doesNotContain("hybrid").doesNotContain("hnsw");
+    }
+
+    @Test void createDatasetHybridSendsHybridTrue() throws Exception {
+        server.enqueue(json("{\"id\":\"ds1\",\"name\":\"docs\",\"dim\":2560,\"index_type\":\"sable\"}"));
+        client.datasets().create("docs", true);
+        String body = server.takeRequest().getBody().readUtf8();
+        assertThat(body).contains("\"hybrid\":true");
+        assertThat(body).contains("\"index_type\":\"sable\"");
+
+        server.enqueue(json("{\"id\":\"ds2\",\"name\":\"docs\",\"dim\":1536,\"index_type\":\"sable\"}"));
+        client.datasets().create(CreateDatasetRequest.builder("docs")
+                .embedding(EmbeddingConfig.openai("small"))
+                .hybrid(true)
+                .build());
+        String openaiBody = server.takeRequest().getBody().readUtf8();
+        // openai/text-embedding-3-small infers dim 1536 without an explicit dim.
+        assertThat(openaiBody).contains("\"dim\":1536", "\"provider\":\"openai\"", "\"model\":\"text-embedding-3-small\"", "\"hybrid\":true");
+    }
+
+    @Test void insertPreservesNumericVectorIdsAsJsonNumbers() throws Exception {
+        server.enqueue(json("{\"inserted\":3}"));
+
+        InsertResponse response = client.datasets().insert("ds", List.of(
+                VectorRecord.of(42L, List.of(0.1, 0.2), Map.of("title", "doc")),
+                VectorRecord.of(7L, List.of(0.3, 0.4), null),
+                VectorRecord.of("str-id", List.of(0.5, 0.6), null)));
+
+        assertThat(response.getInserted()).isEqualTo(3);
+        String body = server.takeRequest().getBody().readUtf8();
+        // Numeric ids serialize as JSON numbers (no quotes); string ids keep their quotes.
+        assertThat(body).contains("\"id\":42").contains("\"id\":7").contains("\"id\":\"str-id\"");
+        assertThat(body).doesNotContain("\"id\":\"42\"").doesNotContain("\"id\":\"7\"");
+    }
+
+    @Test void addTextsPreservesNumericIdsAsJsonNumbers() throws Exception {
+        server.enqueue(json("{\"embeddings\":[[0.1,0.2]]}"));
+        server.enqueue(json("{\"inserted\":1}"));
+
+        client.datasets().addTexts("ds", AddTextsRequest.ofNumericIds(
+                List.of("hello"), List.of(99L), null));
+
+        assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/ds/embed");
+        String insertBody = server.takeRequest().getBody().readUtf8();
+        assertThat(insertBody).contains("\"id\":99").doesNotContain("\"id\":\"99\"");
+    }
+
+    @Test void confluenceSourceSerializesConfluenceType() throws Exception {
+        server.enqueue(json("{\"id\":\"conf\",\"name\":\"docs\",\"type\":\"confluence\"}"));
+        server.enqueue(json("{\"id\":\"conf2\",\"name\":\"company.atlassian.net\",\"type\":\"confluence\"}"));
+
+        client.ingestion().createConfluence(ConfluenceSource.builder("eng-confluence")
+                .cloudId("cloud-123")
+                .spaces(List.of("ENG", "DOCS"))
+                .includeAttachments(true)
+                .build());
+        String body = server.takeRequest().getBody().readUtf8();
+        assertThat(body).contains("\"source_type\":\"confluence\"");
+        assertThat(body).contains("\"cloud_id\":\"cloud-123\"");
+        assertThat(body).contains("\"spaces\":[\"ENG\",\"DOCS\"]");
+        assertThat(body).contains("\"include_attachments\":true");
+        assertThat(body).contains("\"name\":\"eng-confluence\"");
+
+        client.ingestion().createConfluence("cloud-123");
+        assertThat(server.takeRequest().getBody().readUtf8())
+                .contains("\"source_type\":\"confluence\"", "\"cloud_id\":\"cloud-123\"");
+
+        assertThat(SourceType.CONFLUENCE).isEqualTo("confluence");
+        assertThat(ConfluenceSource.basicAuth("https://company.atlassian.net", "me@x.com", "tok")
+                .toCreateSourceRequest().getConfig())
+                .containsEntry("base_url", "https://company.atlassian.net")
+                .containsEntry("auth_mode", "basic")
+                .containsEntry("username", "me@x.com")
+                .containsEntry("api_token", "tok");
+    }
+
+    @Test void intelligenceSessionsCrudAndMessages() throws Exception {
+        server.enqueue(json("{\"id\":\"sess1\",\"title\":\"chat\",\"status\":\"active\",\"organization_id\":\"org1\"}").setResponseCode(201));
+        server.enqueue(json("{\"sessions\":[{\"id\":\"sess1\",\"title\":\"chat\"},{\"id\":\"sess2\",\"title\":\"other\"}]}"));
+        server.enqueue(json("{\"id\":\"sess1\",\"title\":\"chat\",\"status\":\"active\"}"));
+        server.enqueue(json("{\"id\":\"msg1\",\"session_id\":\"sess1\",\"role\":\"user\",\"content\":\"hi\"}").setResponseCode(201));
+        server.enqueue(json("{\"messages\":[{\"id\":\"msg1\",\"role\":\"user\",\"content\":\"hi\"}]}"));
+        server.enqueue(json("{}"));
+
+        IntelligenceSession created = client.intelligence().createSession(
+                SessionCreateRequest.of("chat").datasetId("ds1"));
+        assertThat(created.getId()).isEqualTo("sess1");
+        assertThat(created.getOrganizationId()).isEqualTo("org1");
+        RecordedRequest createReq = server.takeRequest();
+        assertThat(createReq.getPath()).isEqualTo("/intelligence/sessions");
+        assertThat(createReq.getMethod()).isEqualTo("POST");
+        assertThat(createReq.getBody().readUtf8()).contains("\"title\":\"chat\"", "\"dataset_id\":\"ds1\"");
+
+        List<IntelligenceSession> sessions = client.intelligence().listSessions(50);
+        assertThat(sessions).hasSize(2);
+        assertThat(sessions.get(1).getId()).isEqualTo("sess2");
+        assertThat(server.takeRequest().getPath()).isEqualTo("/intelligence/sessions?limit=50");
+
+        IntelligenceSession one = client.intelligence().getSession("sess1");
+        assertThat(one.getTitle()).isEqualTo("chat");
+        assertThat(server.takeRequest().getPath()).isEqualTo("/intelligence/sessions/sess1");
+
+        SessionMessage appended = client.intelligence().appendMessage("sess1",
+                SessionMessageCreateRequest.user("hi"));
+        assertThat(appended.getId()).isEqualTo("msg1");
+        RecordedRequest appendReq = server.takeRequest();
+        assertThat(appendReq.getPath()).isEqualTo("/intelligence/sessions/sess1/messages");
+        assertThat(appendReq.getBody().readUtf8()).contains("\"role\":\"user\"", "\"content\":\"hi\"");
+
+        List<SessionMessage> messages = client.intelligence().listMessages("sess1", 100);
+        assertThat(messages).hasSize(1);
+        assertThat(messages.get(0).getContent()).isEqualTo("hi");
+        assertThat(server.takeRequest().getPath()).isEqualTo("/intelligence/sessions/sess1/messages?limit=100");
+
+        client.intelligence().deleteSession("sess1");
+        RecordedRequest deleteReq = server.takeRequest();
+        assertThat(deleteReq.getMethod()).isEqualTo("DELETE");
+        assertThat(deleteReq.getPath()).isEqualTo("/intelligence/sessions/sess1");
+    }
+
+    @Test void intelligenceAccessorAndQueryAlias() throws Exception {
+        server.enqueue(json("{\"answer\":\"yes\",\"sources\":[]}"));
+        assertThat(client.intelligence()).isSameAs(client.intelligence());
+        assertThat(client.intelligence().query("question").getAnswer()).isEqualTo("yes");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"stream\":false");
+    }
+
     @Test void getDeleteSearchAndInsertDatasets() throws Exception {
         server.enqueue(json("{\"id\":\"abc\",\"name\":\"n\"}"));
         server.enqueue(json("{}"));
