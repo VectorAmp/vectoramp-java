@@ -78,6 +78,18 @@ public final class VectorAmpClient implements AutoCloseable {
     public SchedulesClient schedules() { return schedules; }
 
     /**
+     * Intelligence client for RAG queries and session management.
+     *
+     * <p>Exposes {@code ask}/{@code query}/{@code stream} plus session helpers
+     * ({@code createSession}, {@code listSessions}, {@code getSession}, {@code appendMessage},
+     * {@code listMessages}). The top-level {@link #ask(String)} and {@link #askStream(String)}
+     * convenience methods delegate here.</p>
+     *
+     * @return intelligence operations client
+     */
+    public IntelligenceClient intelligence() { return intelligence; }
+
+    /**
      * Runs a non-streaming intelligence query across the API default dataset scope.
      *
      * @param query question or prompt text

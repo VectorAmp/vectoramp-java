@@ -12,6 +12,8 @@ public final class SourceType {
     public static final String GOOGLE_DRIVE = "gdrive";
     /** Jira source type. */
     public static final String JIRA = "jira";
+    /** Confluence source type. */
+    public static final String CONFLUENCE = "confluence";
     /** Direct file-upload source type. */
     public static final String FILE_UPLOAD = "file_upload";
 

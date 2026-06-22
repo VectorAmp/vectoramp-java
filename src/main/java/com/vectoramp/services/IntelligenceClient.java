@@ -1,9 +1,15 @@
 package com.vectoramp.services;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.vectoramp.VectorAmpException;
 import com.vectoramp.http.Transport;
 import com.vectoramp.models.AskRequest;
 import com.vectoramp.models.AskResponse;
+import com.vectoramp.models.IntelligenceSession;
+import com.vectoramp.models.SessionCreateRequest;
+import com.vectoramp.models.SessionMessage;
+import com.vectoramp.models.SessionMessageCreateRequest;
 import com.vectoramp.models.SseEvent;
 
 import java.io.BufferedReader;
@@ -11,8 +17,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -45,6 +55,151 @@ public final class IntelligenceClient extends ApiService {
     public AskResponse ask(AskRequest request) {
         request.stream(false);
         return post("/intelligence/query", request, AskResponse.class);
+    }
+
+    /**
+     * Alias for {@link #ask(String)} matching the cross-language {@code query} method name.
+     * @param query question or prompt text
+     * @return answer and optional source/chunk metadata
+     */
+    public AskResponse query(String query) { return ask(query); }
+
+    /**
+     * Alias for {@link #ask(AskRequest)} matching the cross-language {@code query} method name.
+     * @param request query request
+     * @return answer and optional source/chunk metadata
+     */
+    public AskResponse query(AskRequest request) { return ask(request); }
+
+    /**
+     * Alias for {@link #askStream(String)} matching the cross-language {@code stream} method name.
+     * @param query question or prompt text
+     * @return ordered event stream; close it if not fully consumed
+     */
+    public Stream<SseEvent> stream(String query) { return askStream(query); }
+
+    /**
+     * Alias for {@link #askStream(AskRequest)} matching the cross-language {@code stream} method name.
+     * @param request query request
+     * @return ordered event stream; close it if not fully consumed
+     */
+    public Stream<SseEvent> stream(AskRequest request) { return askStream(request); }
+
+    /**
+     * Creates an intelligence session.
+     *
+     * @param request session create request; title, workspace, dataset, and metadata are optional
+     * @return created session
+     */
+    public IntelligenceSession createSession(SessionCreateRequest request) {
+        return post("/intelligence/sessions", request == null ? new SessionCreateRequest() : request, IntelligenceSession.class);
+    }
+
+    /**
+     * Creates an intelligence session with a title.
+     *
+     * @param title session title
+     * @return created session
+     */
+    public IntelligenceSession createSession(String title) {
+        return createSession(SessionCreateRequest.of(title));
+    }
+
+    /**
+     * Lists intelligence sessions using the API default limit.
+     *
+     * @return sessions, most recent first
+     */
+    public List<IntelligenceSession> listSessions() { return listSessions(null); }
+
+    /**
+     * Lists intelligence sessions.
+     *
+     * @param limit optional maximum number of sessions; {@code null} uses the API default
+     * @return sessions, most recent first
+     */
+    public List<IntelligenceSession> listSessions(Integer limit) {
+        Map<String, String> query = new LinkedHashMap<>();
+        if (limit != null) query.put("limit", String.valueOf(limit));
+        JsonNode root = parseTree(transport.execute(new Transport.Request("GET", "/intelligence/sessions", query, Collections.emptyMap(), null)).getBody());
+        return convertList(root, "sessions", new TypeReference<List<IntelligenceSession>>() {});
+    }
+
+    /**
+     * Fetches an intelligence session by id.
+     *
+     * @param sessionId session id
+     * @return session resource
+     */
+    public IntelligenceSession getSession(String sessionId) {
+        return get("/intelligence/sessions/" + encodePath(sessionId), Collections.emptyMap(), IntelligenceSession.class);
+    }
+
+    /**
+     * Deletes an intelligence session.
+     *
+     * @param sessionId session id
+     */
+    public void deleteSession(String sessionId) {
+        delete("/intelligence/sessions/" + encodePath(sessionId));
+    }
+
+    /**
+     * Appends a message to an intelligence session.
+     *
+     * @param sessionId session id
+     * @param request message role, content, and optional metadata
+     * @return the appended message
+     */
+    public SessionMessage appendMessage(String sessionId, SessionMessageCreateRequest request) {
+        return post("/intelligence/sessions/" + encodePath(sessionId) + "/messages", request, SessionMessage.class);
+    }
+
+    /**
+     * Appends a message to an intelligence session.
+     *
+     * @param sessionId session id
+     * @param role message role: user, assistant, system, or tool
+     * @param content message content
+     * @return the appended message
+     */
+    public SessionMessage appendMessage(String sessionId, String role, String content) {
+        return appendMessage(sessionId, SessionMessageCreateRequest.of(role, content));
+    }
+
+    /**
+     * Lists messages in an intelligence session using the API default limit.
+     *
+     * @param sessionId session id
+     * @return messages in chronological order
+     */
+    public List<SessionMessage> listMessages(String sessionId) { return listMessages(sessionId, null); }
+
+    /**
+     * Lists messages in an intelligence session.
+     *
+     * @param sessionId session id
+     * @param limit optional maximum number of messages; {@code null} uses the API default
+     * @return messages in chronological order
+     */
+    public List<SessionMessage> listMessages(String sessionId, Integer limit) {
+        Map<String, String> query = new LinkedHashMap<>();
+        if (limit != null) query.put("limit", String.valueOf(limit));
+        JsonNode root = parseTree(transport.execute(new Transport.Request("GET", "/intelligence/sessions/" + encodePath(sessionId) + "/messages", query, Collections.emptyMap(), null)).getBody());
+        return convertList(root, "messages", new TypeReference<List<SessionMessage>>() {});
+    }
+
+    private static <T> List<T> convertList(JsonNode root, String field, TypeReference<List<T>> type) {
+        JsonNode array = root.path(field);
+        if (array.isMissingNode() || array.isNull()) {
+            array = root.isArray() ? root : MAPPER.createArrayNode();
+        }
+        List<T> result = MAPPER.convertValue(array, type);
+        return result == null ? new ArrayList<>() : result;
+    }
+
+    private static String encodePath(String value) {
+        return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     /**

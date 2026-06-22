@@ -58,6 +58,31 @@ public final class DatasetsClient extends ApiService {
     }
 
     /**
+     * Creates a SABLE dataset with only a name.
+     *
+     * <p>Uses the default embedding {@code vectoramp/VectorAmp-Embedding-4B}, inferred
+     * dimension {@code 2560}, and {@code cosine} metric. The SDK always sends
+     * {@code index_type=sable}.</p>
+     *
+     * @param name dataset display name
+     * @return created dataset resource
+     */
+    public Dataset create(String name) {
+        return create(CreateDatasetRequest.builder(name).build());
+    }
+
+    /**
+     * Creates a SABLE dataset with only a name, optionally enabling hybrid dense/sparse search.
+     *
+     * @param name dataset display name
+     * @param hybrid true to enable hybrid; maps to {@code hybrid:true} in the create body
+     * @return created dataset resource
+     */
+    public Dataset create(String name, boolean hybrid) {
+        return create(CreateDatasetRequest.builder(name).hybrid(hybrid).build());
+    }
+
+    /**
      * Creates a SABLE dataset.
      *
      * @param name dataset display name
@@ -196,8 +221,10 @@ public final class DatasetsClient extends ApiService {
             if (request.getMetadata() != null && i < request.getMetadata().size() && request.getMetadata().get(i) != null) {
                 metadata.putAll(request.getMetadata().get(i));
             }
-            String id = request.getIds() != null && i < request.getIds().size() ? request.getIds().get(i) : UUID.randomUUID().toString();
-            vectors.add(VectorRecord.of(id, embeddings.get(i), metadata));
+            Object id = request.getIds() != null && i < request.getIds().size() && request.getIds().get(i) != null
+                    ? request.getIds().get(i)
+                    : UUID.randomUUID().toString();
+            vectors.add(VectorRecord.ofId(id, embeddings.get(i), metadata));
         }
         return insert(datasetId, vectors);
     }
