@@ -96,6 +96,32 @@ public final class GoogleDriveSource implements IngestionSourceInput {
      */
         public Builder sharedDriveId(String sharedDriveId) { GenericSource.put(config, "shared_drive_id", sharedDriveId); return this; }
         /**
+     * Configures service-account auth with a JSON key (sets {@code auth_mode=service_account}).
+     * @param serviceAccountJson service-account key JSON
+     * @return this builder
+     */
+        public Builder serviceAccountJson(String serviceAccountJson) {
+            GenericSource.put(config, "auth_mode", "service_account");
+            GenericSource.put(config, "service_account_json", serviceAccountJson);
+            return this;
+        }
+        /**
+     * Configures OAuth credentials (sets {@code auth_mode=oauth}).
+     * @param oauthCredentials Google OAuth credential map
+     * @return this builder
+     */
+        public Builder oauth(Map<String, Object> oauthCredentials) {
+            GenericSource.put(config, "auth_mode", "oauth");
+            GenericSource.put(config, "oauth_credentials", oauthCredentials);
+            return this;
+        }
+        /**
+     * References a stored OAuth connection by id (sets config {@code connection_id}); null is omitted.
+     * @param connectionId connection id from the connections API
+     * @return this builder
+     */
+        public Builder connection(String connectionId) { GenericSource.put(config, "connection_id", connectionId); return this; }
+        /**
      * Sets optional sync mode; API default applies when omitted.
      * @param syncMode sync mode
      * @return this builder

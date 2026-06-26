@@ -97,6 +97,12 @@ public final class GenericSource implements IngestionSourceInput {
      */
         public Builder config(Map<String, Object> values) { putAll(config, values); return this; }
         /**
+     * References a stored OAuth connection by id (sets config {@code connection_id}); null is omitted.
+     * @param connectionId connection id from the connections API
+     * @return this builder
+     */
+        public Builder connection(String connectionId) { put(config, "connection_id", connectionId); return this; }
+        /**
      * Adds optional metadata; null values are omitted.
      * @param key metadata key
      * @param value metadata value

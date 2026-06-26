@@ -318,7 +318,70 @@ public final class IngestionClient extends ApiService {
         return get("/ingestion/jobs/" + encodePath(jobId) + "/statistics", Collections.emptyMap(), JsonNode.class);
     }
 
-    private static String encodePath(String value) {
-        return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+    /**
+     * Deletes a source. Fails if the source is still referenced by jobs or schedules.
+     * @param sourceId source ID
+     */
+    public void deleteSource(String sourceId) { deleteSource(sourceId, false); }
+
+    /**
+     * Deletes a source.
+     *
+     * @param sourceId source ID
+     * @param force when true, deletes the source even if it is still referenced ({@code ?force=true})
+     */
+    public void deleteSource(String sourceId, boolean force) {
+        Map<String, String> query = force ? Collections.singletonMap("force", "true") : Collections.emptyMap();
+        transport.execute(new Transport.Request("DELETE", "/ingestion/sources/" + encodePath(sourceId), query, Collections.emptyMap(), null));
+    }
+
+    /**
+     * Lists sources that are not referenced by any job or schedule, using API defaults for pagination.
+     * @return page of unused sources with total, limit, and offset
+     */
+    public Page<Source> listUnusedSources() { return listUnusedSources(null, null); }
+
+    /**
+     * Lists sources that are not referenced by any job or schedule.
+     *
+     * @param limit optional maximum number of sources; {@code null} uses the API default
+     * @param offset optional starting offset; {@code null} uses the API default
+     * @return page of unused sources with total, limit, and offset
+     */
+    public Page<Source> listUnusedSources(Integer limit, Integer offset) {
+        JsonNode root = parseTree(transport.execute(new Transport.Request("GET", "/ingestion/sources/unused", pageQuery(limit, offset), Collections.emptyMap(), null)).getBody());
+        List<Source> sources = MAPPER.convertValue(root.path("sources"), new TypeReference<List<Source>>() {});
+        return new Page<>(sources, root.path("total").asInt(), root.path("limit").asInt(), root.path("offset").asInt());
+    }
+
+    /**
+     * Deletes every source that is not referenced by any job or schedule.
+     * @return raw API cleanup summary
+     */
+    public JsonNode cleanupUnusedSources() {
+        return post("/ingestion/sources/cleanup", Collections.emptyMap(), JsonNode.class);
+    }
+
+    /**
+     * Lists the jobs and schedules that reference a source.
+     * @param sourceId source ID
+     * @return raw API references payload
+     */
+    public JsonNode getSourceReferences(String sourceId) {
+        return get("/ingestion/sources/" + encodePath(sourceId) + "/references", Collections.emptyMap(), JsonNode.class);
+    }
+
+    /**
+     * Validates a prospective source config without creating it.
+     *
+     * @param sourceType API source type, for example {@code web}, {@code s3}, or {@code gdrive}
+     * @param config source config to validate
+     * @return raw API validation result, typically including warnings and sample records
+     */
+    public JsonNode validateSource(String sourceType, Map<String, Object> config) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("source_type", sourceType);
+        body.put("config", config == null ? Collections.emptyMap() : config);
+        return post("/ingestion/sources/validate", body, JsonNode.class);
     }
 }

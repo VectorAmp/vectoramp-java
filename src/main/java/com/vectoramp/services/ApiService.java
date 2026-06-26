@@ -101,4 +101,8 @@ abstract class ApiService {
         if (status != null && !status.isBlank()) query.put("status", status);
         return query;
     }
+
+    protected static String encodePath(String value) {
+        return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+    }
 }
