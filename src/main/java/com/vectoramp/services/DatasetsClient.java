@@ -273,8 +273,4 @@ public final class DatasetsClient extends ApiService {
             throw new VectorAmpException("Failed to parse VectorAmp dataset response", e);
         }
     }
-
-    private static String encodePath(String value) {
-        return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
-    }
 }

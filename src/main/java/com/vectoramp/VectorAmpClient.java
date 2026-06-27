@@ -5,6 +5,7 @@ import com.vectoramp.http.Transport;
 import com.vectoramp.models.AskRequest;
 import com.vectoramp.models.AskResponse;
 import com.vectoramp.models.SseEvent;
+import com.vectoramp.services.ConnectionsClient;
 import com.vectoramp.services.DatasetsClient;
 import com.vectoramp.services.IngestionClient;
 import com.vectoramp.services.IntelligenceClient;
@@ -31,6 +32,7 @@ public final class VectorAmpClient implements AutoCloseable {
     private final IngestionClient ingestion;
     private final IntelligenceClient intelligence;
     private final SchedulesClient schedules;
+    private final ConnectionsClient connections;
 
     private VectorAmpClient(Builder builder) {
         this.transport = builder.transport != null
@@ -39,6 +41,7 @@ public final class VectorAmpClient implements AutoCloseable {
         this.ingestion = new IngestionClient(transport);
         this.intelligence = new IntelligenceClient(transport);
         this.schedules = new SchedulesClient(transport);
+        this.connections = new ConnectionsClient(transport);
         this.datasets = new DatasetsClient(transport, ingestion, intelligence);
     }
 
@@ -76,6 +79,16 @@ public final class VectorAmpClient implements AutoCloseable {
      * @return recurring ingestion schedule operations client
      */
     public SchedulesClient schedules() { return schedules; }
+
+    /**
+     * Connections client for OAuth connection management ({@code /connections}).
+     *
+     * <p>Exposes {@code list}/{@code create}/{@code get}/{@code delete} for brokering third-party
+     * OAuth credentials that ingestion sources reference by {@code connection_id}.</p>
+     *
+     * @return OAuth connection operations client
+     */
+    public ConnectionsClient connections() { return connections; }
 
     /**
      * Intelligence client for RAG queries and session management.

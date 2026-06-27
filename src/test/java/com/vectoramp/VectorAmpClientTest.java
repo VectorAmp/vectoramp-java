@@ -1,5 +1,6 @@
 package com.vectoramp;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.vectoramp.models.*;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -527,6 +528,158 @@ class VectorAmpClientTest {
         RecordedRequest trigReq = server.takeRequest();
         assertThat(trigReq.getPath()).isEqualTo("/ingestion/schedules/sch_1/trigger");
         assertThat(trigReq.getMethod()).isEqualTo("POST");
+    }
+
+    @Test void sourceManagementMethods() throws Exception {
+        server.enqueue(json("{}")); // deleteSource(s1)
+        server.enqueue(json("{}")); // deleteSource(s2, true)
+        server.enqueue(json("{\"sources\":[{\"id\":\"u1\",\"name\":\"old\",\"type\":\"web\"}],\"total\":1,\"limit\":50,\"offset\":0}")); // listUnusedSources()
+        server.enqueue(json("{\"sources\":[],\"total\":0,\"limit\":5,\"offset\":10}")); // listUnusedSources(5,10)
+        server.enqueue(json("{\"deleted\":2,\"source_ids\":[\"u1\",\"u2\"]}")); // cleanup
+        server.enqueue(json("{\"jobs\":[\"j1\"],\"schedules\":[]}")); // references
+        server.enqueue(json("{\"valid\":true,\"warnings\":[],\"samples\":[]}")); // validate
+
+        client.ingestion().deleteSource("s1");
+        client.ingestion().deleteSource("s2", true);
+
+        Page<Source> unused = client.ingestion().listUnusedSources();
+        assertThat(unused.getItems()).hasSize(1);
+        assertThat(unused.getItems().get(0).getId()).isEqualTo("u1");
+        assertThat(unused.getTotal()).isEqualTo(1);
+
+        Page<Source> unusedPage = client.ingestion().listUnusedSources(5, 10);
+        assertThat(unusedPage.getItems()).isEmpty();
+        assertThat(unusedPage.getOffset()).isEqualTo(10);
+
+        JsonNode cleanup = client.ingestion().cleanupUnusedSources();
+        assertThat(cleanup.get("deleted").asInt()).isEqualTo(2);
+
+        JsonNode refs = client.ingestion().getSourceReferences("s1");
+        assertThat(refs.get("jobs").get(0).asText()).isEqualTo("j1");
+
+        JsonNode validation = client.ingestion().validateSource("web", Map.of("url", "https://example.com"));
+        assertThat(validation.get("valid").asBoolean()).isTrue();
+
+        RecordedRequest del1 = server.takeRequest();
+        assertThat(del1.getMethod()).isEqualTo("DELETE");
+        assertThat(del1.getPath()).isEqualTo("/ingestion/sources/s1");
+
+        RecordedRequest del2 = server.takeRequest();
+        assertThat(del2.getMethod()).isEqualTo("DELETE");
+        assertThat(del2.getPath()).isEqualTo("/ingestion/sources/s2?force=true");
+
+        assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/unused");
+        assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/unused?limit=5&offset=10");
+
+        RecordedRequest cleanupReq = server.takeRequest();
+        assertThat(cleanupReq.getMethod()).isEqualTo("POST");
+        assertThat(cleanupReq.getPath()).isEqualTo("/ingestion/sources/cleanup");
+
+        assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/s1/references");
+
+        RecordedRequest validateReq = server.takeRequest();
+        assertThat(validateReq.getMethod()).isEqualTo("POST");
+        assertThat(validateReq.getPath()).isEqualTo("/ingestion/sources/validate");
+        assertThat(validateReq.getBody().readUtf8())
+                .contains("\"source_type\":\"web\"", "\"config\":{\"url\":\"https://example.com\"}");
+    }
+
+    @Test void connectionsClientCrud() throws Exception {
+        server.enqueue(json("{\"connections\":[{\"id\":\"c1\",\"provider\":\"google\",\"status\":\"connected\",\"authorization_url\":null},{\"id\":\"c2\",\"provider\":\"atlassian\",\"status\":\"pending\"}]}"));
+        server.enqueue(json("{\"connections\":[{\"id\":\"c1\",\"provider\":\"google\",\"status\":\"connected\"}]}"));
+        server.enqueue(json("{\"id\":\"c3\",\"provider\":\"google\",\"status\":\"pending\",\"authorization_url\":\"https://auth.example.com/consent\"}").setResponseCode(201));
+        server.enqueue(json("{\"id\":\"c4\",\"provider\":\"google\",\"status\":\"pending\"}").setResponseCode(201));
+        server.enqueue(json("{\"id\":\"c1\",\"provider\":\"google\",\"status\":\"connected\"}"));
+        server.enqueue(json("{}"));
+
+        assertThat(client.connections()).isSameAs(client.connections());
+
+        List<Connection> all = client.connections().list();
+        assertThat(all).hasSize(2);
+        assertThat(all.get(0).getId()).isEqualTo("c1");
+        assertThat(all.get(0).getProvider()).isEqualTo("google");
+        assertThat(all.get(0).getStatus()).isEqualTo("connected");
+
+        List<Connection> filtered = client.connections().list("google");
+        assertThat(filtered).hasSize(1);
+
+        Connection created = client.connections().create("google");
+        assertThat(created.getId()).isEqualTo("c3");
+        assertThat(created.getAuthorizationUrl()).isEqualTo("https://auth.example.com/consent");
+
+        Connection createdTyped = client.connections().create("google", "gdrive");
+        assertThat(createdTyped.getId()).isEqualTo("c4");
+
+        Connection one = client.connections().get("c1");
+        assertThat(one.getStatus()).isEqualTo("connected");
+
+        client.connections().delete("c1");
+
+        assertThat(server.takeRequest().getPath()).isEqualTo("/connections");
+        assertThat(server.takeRequest().getPath()).isEqualTo("/connections?provider=google");
+
+        RecordedRequest createReq = server.takeRequest();
+        assertThat(createReq.getMethod()).isEqualTo("POST");
+        assertThat(createReq.getPath()).isEqualTo("/connections");
+        assertThat(createReq.getHeader("X-API-Key")).isEqualTo("test-key");
+        assertThat(createReq.getBody().readUtf8()).contains("\"provider\":\"google\"").doesNotContain("source_type");
+
+        RecordedRequest createTypedReq = server.takeRequest();
+        assertThat(createTypedReq.getBody().readUtf8()).contains("\"provider\":\"google\"", "\"source_type\":\"gdrive\"");
+
+        assertThat(server.takeRequest().getPath()).isEqualTo("/connections/c1");
+
+        RecordedRequest deleteReq = server.takeRequest();
+        assertThat(deleteReq.getMethod()).isEqualTo("DELETE");
+        assertThat(deleteReq.getPath()).isEqualTo("/connections/c1");
+    }
+
+    @Test void googleDriveAuthAndConnectionSerialization() throws Exception {
+        Map<String, Object> saConfig = GoogleDriveSource.builder("drive")
+                .folderId("folder-1")
+                .serviceAccountJson("{\"type\":\"service_account\"}")
+                .build()
+                .toCreateSourceRequest()
+                .getConfig();
+        assertThat(saConfig)
+                .containsEntry("auth_mode", "service_account")
+                .containsEntry("service_account_json", "{\"type\":\"service_account\"}")
+                .containsEntry("folder_id", "folder-1");
+
+        Map<String, Object> oauthConfig = GoogleDriveSource.builder("drive")
+                .oauth(Map.of("access_token", "tok", "refresh_token", "ref"))
+                .build()
+                .toCreateSourceRequest()
+                .getConfig();
+        assertThat(oauthConfig)
+                .containsEntry("auth_mode", "oauth")
+                .containsEntry("oauth_credentials", Map.of("access_token", "tok", "refresh_token", "ref"));
+
+        assertThat(GoogleDriveSource.builder("drive").connection("conn-1").build()
+                .toCreateSourceRequest().getConfig())
+                .containsEntry("connection_id", "conn-1");
+
+        // connection() also added to GCS, Confluence, and Jira sources.
+        assertThat(GCSSource.builder("gcs").config("bucket", "b").connection("conn-gcs").build()
+                .toCreateSourceRequest().getConfig())
+                .containsEntry("connection_id", "conn-gcs");
+        assertThat(ConfluenceSource.builder("conf").cloudId("c").connection("conn-conf").build()
+                .toCreateSourceRequest().getConfig())
+                .containsEntry("connection_id", "conn-conf");
+        assertThat(JiraSource.builder("jira").config("cloud_id", "c").connection("conn-jira").build()
+                .toCreateSourceRequest().getConfig())
+                .containsEntry("connection_id", "conn-jira");
+
+        // The auth/connection config serializes over the wire on create.
+        server.enqueue(json("{\"id\":\"gd\",\"name\":\"drive\",\"type\":\"gdrive\"}"));
+        client.ingestion().createGoogleDrive(GoogleDriveSource.builder("drive")
+                .folderId("folder-1")
+                .serviceAccountJson("{\"type\":\"service_account\"}")
+                .connection("conn-1")
+                .build());
+        assertThat(server.takeRequest().getBody().readUtf8())
+                .contains("\"source_type\":\"gdrive\"", "\"auth_mode\":\"service_account\"",
+                        "\"connection_id\":\"conn-1\"", "\"folder_id\":\"folder-1\"");
     }
 
     @Test void apiErrorsThrowUsefulException() {

@@ -116,6 +116,12 @@ public final class ConfluenceSource implements IngestionSourceInput {
             return this;
         }
         /**
+         * References a stored OAuth connection by id (sets config {@code connection_id}).
+         * @param connectionId connection id from the connections API
+         * @return this builder
+         */
+        public Builder connection(String connectionId) { delegate.config("connection_id", connectionId); return this; }
+        /**
          * Restricts ingestion to the given space keys; empty/null ingests all accessible spaces.
          * @param spaces space keys
          * @return this builder

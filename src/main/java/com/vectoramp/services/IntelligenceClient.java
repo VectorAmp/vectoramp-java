@@ -198,10 +198,6 @@ public final class IntelligenceClient extends ApiService {
         return result == null ? new ArrayList<>() : result;
     }
 
-    private static String encodePath(String value) {
-        return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
-    }
-
     /**
      * Runs an intelligence query as server-sent events.
      *
