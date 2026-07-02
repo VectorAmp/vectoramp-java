@@ -95,16 +95,18 @@ dataset.delete();
 ### Creating datasets
 
 ```java
-// Minimal: name only (defaults applied).
+// Minimal: name only. Embedding config is omitted so VectorAmp uses
+// the managed VectorAmp-Embedding-4B model and infers dim 2560.
 Dataset docs = client.datasets().create("docs");
 
 // Hybrid dense + sparse dataset.
 Dataset hybrid = client.datasets().create("hybrid-docs", true);
 
-// Full control, including an OpenAI embedding (dim inferred from the model).
-Dataset custom = client.datasets().create(
+// Optional BYOM: use OpenAI only when you intentionally want that provider
+// (text-embedding-3-small dim 1536; large dim 3072).
+Dataset openaiDocs = client.datasets().create(
     CreateDatasetRequest.builder("openai-docs")
-        .embedding(EmbeddingConfig.openai("small")) // text-embedding-3-small, dim 1536
+        .embedding(EmbeddingConfig.openai("small"))
         .metric("cosine")
         .hybrid(true)
         .build()
