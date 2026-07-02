@@ -45,10 +45,10 @@ publishing {
             pom {
                 name = 'VectorAmp Java SDK'
                 description = project.description
-                url = 'https://github.com/vectoramp/vectoramp-java'
+                url = 'https://github.com/VectorAmp/vectoramp-java'
                 licenses { license { name = 'Apache-2.0'; url = 'https://www.apache.org/licenses/LICENSE-2.0' } }
                 developers { developer { id = 'vectoramp'; name = 'VectorAmp'; email = 'engineering@vectoramp.com' } }
-                scm { connection = 'scm:git:git://github.com/vectoramp/vectoramp-java.git'; developerConnection = 'scm:git:ssh://git@github.com/vectoramp/vectoramp-java.git'; url = 'https://github.com/vectoramp/vectoramp-java' }
+                scm { connection = 'scm:git:git://github.com/VectorAmp/vectoramp-java.git'; developerConnection = 'scm:git:ssh://git@github.com/VectorAmp/vectoramp-java.git'; url = 'https://github.com/VectorAmp/vectoramp-java' }
             }
         }
     }
