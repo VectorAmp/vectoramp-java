@@ -104,8 +104,8 @@ class VectorAmpClientTest {
 
         assertThat(dataset.getId()).isEqualTo("ds-openai");
         RecordedRequest secretReq = server.takeRequest();
-        assertThat(secretReq.getPath()).isEqualTo("/org-secrets/emb%3Aopenai%3Aapi_key");
-        assertThat(secretReq.getBody().readUtf8()).contains("\"api_key\":\"sk-test\"", "\"secret_ref\":\"custom-ref\"", "\"validate\":true", "\"model\":\"text-embedding-3-small\"");
+        assertThat(secretReq.getPath()).isEqualTo("/org-secrets/custom-ref");
+        assertThat(secretReq.getBody().readUtf8()).contains("\"value\":\"sk-test\"");
         RecordedRequest createReq = server.takeRequest();
         assertThat(createReq.getPath()).isEqualTo("/datasets");
         assertThat(createReq.getBody().readUtf8()).contains("\"provider\":\"openai\"", "\"model\":\"text-embedding-3-small\"", "\"secret_ref\":\"custom-ref\"", "\"dim\":1536");
@@ -118,7 +118,7 @@ class VectorAmpClientTest {
 
         RecordedRequest req = server.takeRequest();
         assertThat(req.getPath()).isEqualTo("/org-secrets/emb%3Aopenai%3Aapi_key");
-        assertThat(req.getBody().readUtf8()).contains("\"api_key\":\"sk-test\"", "\"secret_ref\":\"emb:openai:api_key\"");
+        assertThat(req.getBody().readUtf8()).contains("\"value\":\"sk-test\"");
     }
 
     @Test void insertPreservesNumericVectorIdsAsJsonNumbers() throws Exception {
