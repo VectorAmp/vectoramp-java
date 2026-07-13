@@ -181,6 +181,27 @@ public class Dataset {
     }
 
     /**
+     * Deletes one or more vectors from this dataset by id.
+     *
+     * @param ids vector ids; string ids and numeric ids are accepted by the API
+     * @return delete count response
+     */
+    public DeleteVectorsResponse deleteVectors(List<?> ids) {
+        return requireDatasets().deleteVectors(requireId(), ids);
+    }
+
+    /**
+     * Deletes one or more vectors from this dataset by id.
+     *
+     * @param ids vector ids; string ids and numeric ids are accepted by the API
+     * @param writeConcern optional write concern forwarded to the API
+     * @return delete count response
+     */
+    public DeleteVectorsResponse deleteVectors(List<?> ids, String writeConcern) {
+        return requireDatasets().deleteVectors(requireId(), ids, writeConcern);
+    }
+
+    /**
      * Embeds and inserts one text record with a generated vector ID.
      *
      * @param text text to embed and store as metadata.text

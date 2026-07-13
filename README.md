@@ -102,14 +102,21 @@ Dataset docs = client.datasets().create("docs");
 // Hybrid dense + sparse dataset.
 Dataset hybrid = client.datasets().create("hybrid-docs", true);
 
-// Optional BYOM: use OpenAI only when you intentionally want that provider
-// (text-embedding-3-small dim 1536; large dim 3072).
+// Optional BYOM: use OpenAI only when you intentionally want that provider.
+// EmbeddingConfig.openai(...) uses the org secret ref emb:openai:api_key by default.
 Dataset openaiDocs = client.datasets().create(
     CreateDatasetRequest.builder("openai-docs")
         .embedding(EmbeddingConfig.openai("small"))
         .metric("cosine")
         .hybrid(true)
         .build()
+);
+
+// One-call BYOM helper: store/update the org OpenAI key, then create the dataset
+// with embedding.secret_ref pointing at that stored secret.
+Dataset byom = client.datasets().createWithOpenAiApiKey(
+    "openai-docs",
+    System.getenv("OPENAI_API_KEY")
 );
 
 // Custom/unknown embedding model: provide dim explicitly.
@@ -148,7 +155,7 @@ SearchResponse vectorResults = dataset.search(
 );
 ```
 
-### Insert vectors
+### Insert and delete vectors
 
 Vector ids accept a `String` or a number. Numeric ids are sent as JSON numbers, so the API
 preserves them exactly.
@@ -158,6 +165,20 @@ dataset.insert(java.util.List.of(
     VectorRecord.of("doc-001", java.util.List.of(0.1, 0.2, 0.3), java.util.Map.of("title", "Intro")),
     VectorRecord.of(42L, java.util.List.of(0.4, 0.5, 0.6), null) // serialized as "id": 42
 ));
+
+DeleteVectorsResponse deleted = dataset.deleteVectors(java.util.List.of("doc-001", 42L));
+```
+
+### Organization secrets
+
+```java
+client.orgSecrets().putOpenAiApiKey(System.getenv("OPENAI_API_KEY"));
+client.orgSecrets().putOpenAiApiKey(
+    System.getenv("OPENAI_API_KEY"),
+    "emb:openai:api_key",
+    true, // validate before storing
+    "text-embedding-3-small"
+);
 ```
 
 ### Add text

@@ -107,6 +107,65 @@ public final class DatasetsClient extends ApiService {
     }
 
     /**
+     * Stores/updates an OpenAI API key in org secrets, then creates an OpenAI-backed dataset
+     * whose embedding config references that secret.
+     *
+     * @param name dataset display name
+     * @param openAiApiKey OpenAI API key to store server-side
+     * @return created dataset resource using text-embedding-3-small and emb:openai:api_key
+     */
+    public Dataset createWithOpenAiApiKey(String name, String openAiApiKey) {
+        return createWithOpenAiApiKey(name, openAiApiKey, "small", OrgSecretsClient.DEFAULT_OPENAI_SECRET_REF, false);
+    }
+
+    /**
+     * Stores/updates an OpenAI API key in org secrets, then creates an OpenAI-backed dataset
+     * whose embedding config references that secret.
+     *
+     * @param name dataset display name
+     * @param openAiApiKey OpenAI API key to store server-side
+     * @param size OpenAI embedding size: {@code small} or {@code large}
+     * @param secretRef organization secret reference to write and attach to the dataset embedding
+     * @param validate true to ask the API to validate the key before storing
+     * @return created dataset resource
+     */
+    public Dataset createWithOpenAiApiKey(String name, String openAiApiKey, String size, String secretRef, boolean validate) {
+        new OrgSecretsClient(transport).putOpenAiApiKey(openAiApiKey, secretRef, validate, openAiModel(size));
+        return create(CreateDatasetRequest.builder(name)
+                .embedding(EmbeddingConfig.openai(size, secretRef == null || secretRef.isBlank()
+                        ? OrgSecretsClient.DEFAULT_OPENAI_SECRET_REF
+                        : secretRef.trim()))
+                .build());
+    }
+
+    /**
+     * Deletes one or more vectors from a dataset by id.
+     *
+     * @param datasetId dataset ID
+     * @param ids vector ids; string ids and numeric ids are accepted by the API
+     * @return delete count response
+     */
+    public DeleteVectorsResponse deleteVectors(String datasetId, List<?> ids) {
+        return deleteVectors(datasetId, ids, null);
+    }
+
+    /**
+     * Deletes one or more vectors from a dataset by id.
+     *
+     * @param datasetId dataset ID
+     * @param ids vector ids; string ids and numeric ids are accepted by the API
+     * @param writeConcern optional write concern forwarded to the API
+     * @return delete count response
+     */
+    public DeleteVectorsResponse deleteVectors(String datasetId, List<?> ids, String writeConcern) {
+        if (ids == null || ids.isEmpty()) throw new IllegalArgumentException("ids must not be empty");
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("ids", ids);
+        if (writeConcern != null && !writeConcern.isBlank()) body.put("write_concern", writeConcern);
+        return delete("/datasets/" + encodePath(datasetId) + "/vectors", body, DeleteVectorsResponse.class);
+    }
+
+    /**
      * Fetches a dataset by ID.
      *
      * @param datasetId dataset ID
@@ -263,6 +322,12 @@ public final class DatasetsClient extends ApiService {
         body.put("texts", texts);
         JsonNode response = post("/datasets/" + encodePath(datasetId) + "/embed", body, JsonNode.class);
         return MAPPER.convertValue(response.path("embeddings"), new TypeReference<List<List<Double>>>() {});
+    }
+
+    private static String openAiModel(String size) {
+        if ("large".equalsIgnoreCase(size)) return "text-embedding-3-large";
+        if ("small".equalsIgnoreCase(size)) return "text-embedding-3-small";
+        throw new IllegalArgumentException("Unknown OpenAI embedding size: " + size + " (expected \"small\" or \"large\")");
     }
 
     private Dataset toDatasetResource(JsonNode node) {

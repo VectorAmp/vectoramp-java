@@ -70,6 +70,17 @@ public class EmbeddingConfig {
      * @return OpenAI embedding config
      */
     public static EmbeddingConfig openai(String size) {
+        return openai(size, "emb:openai:api_key");
+    }
+
+    /**
+     * Returns an OpenAI embedding config with an explicit secret reference.
+     * @param size {@code "small"} for text-embedding-3-small (dim 1536) or {@code "large"} for
+     *             text-embedding-3-large (dim 3072)
+     * @param secretRef organization secret reference containing the OpenAI API key
+     * @return OpenAI embedding config
+     */
+    public static EmbeddingConfig openai(String size, String secretRef) {
         String model;
         if ("small".equalsIgnoreCase(size)) {
             model = "text-embedding-3-small";
@@ -78,7 +89,16 @@ public class EmbeddingConfig {
         } else {
             throw new IllegalArgumentException("Unknown OpenAI embedding size: " + size + " (expected \"small\" or \"large\")");
         }
-        return new EmbeddingConfig("openai", model);
+        return new EmbeddingConfig("openai", model, secretRef);
+    }
+
+    /**
+     * Returns a copy of this embedding config using the supplied organization secret reference.
+     * @param secretRef organization secret reference
+     * @return embedding config with secret reference
+     */
+    public EmbeddingConfig withSecretRef(String secretRef) {
+        return new EmbeddingConfig(provider, model, secretRef);
     }
 
     /**

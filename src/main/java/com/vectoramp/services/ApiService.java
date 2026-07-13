@@ -46,6 +46,10 @@ abstract class ApiService {
         transport.execute(new Transport.Request("DELETE", path, Collections.emptyMap(), Collections.emptyMap(), null));
     }
 
+    protected <T> T delete(String path, Object body, Class<T> responseType) {
+        return parse(transport.execute(new Transport.Request("DELETE", path, Collections.emptyMap(), Collections.emptyMap(), json(body))).getBody(), responseType);
+    }
+
     protected byte[] download(String path) {
         try (java.io.InputStream input = transport.stream(new Transport.Request("GET", path, Collections.emptyMap(), Collections.singletonMap("Accept", "*/*"), null))) {
             return input.readAllBytes();

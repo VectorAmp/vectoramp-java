@@ -9,6 +9,7 @@ import com.vectoramp.services.ConnectionsClient;
 import com.vectoramp.services.DatasetsClient;
 import com.vectoramp.services.IngestionClient;
 import com.vectoramp.services.IntelligenceClient;
+import com.vectoramp.services.OrgSecretsClient;
 import com.vectoramp.services.SchedulesClient;
 
 import java.net.URI;
@@ -33,6 +34,7 @@ public final class VectorAmpClient implements AutoCloseable {
     private final IntelligenceClient intelligence;
     private final SchedulesClient schedules;
     private final ConnectionsClient connections;
+    private final OrgSecretsClient orgSecrets;
 
     private VectorAmpClient(Builder builder) {
         this.transport = builder.transport != null
@@ -42,6 +44,7 @@ public final class VectorAmpClient implements AutoCloseable {
         this.intelligence = new IntelligenceClient(transport);
         this.schedules = new SchedulesClient(transport);
         this.connections = new ConnectionsClient(transport);
+        this.orgSecrets = new OrgSecretsClient(transport);
         this.datasets = new DatasetsClient(transport, ingestion, intelligence);
     }
 
@@ -89,6 +92,11 @@ public final class VectorAmpClient implements AutoCloseable {
      * @return OAuth connection operations client
      */
     public ConnectionsClient connections() { return connections; }
+
+    /**
+     * @return organization-scoped secret helpers, including OpenAI API key put/update support
+     */
+    public OrgSecretsClient orgSecrets() { return orgSecrets; }
 
     /**
      * Intelligence client for RAG queries and session management.

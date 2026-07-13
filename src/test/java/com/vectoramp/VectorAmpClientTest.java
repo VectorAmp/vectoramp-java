@@ -93,7 +93,32 @@ class VectorAmpClientTest {
                 .build());
         String openaiBody = server.takeRequest().getBody().readUtf8();
         // openai/text-embedding-3-small infers dim 1536 without an explicit dim.
-        assertThat(openaiBody).contains("\"dim\":1536", "\"provider\":\"openai\"", "\"model\":\"text-embedding-3-small\"", "\"hybrid\":true");
+        assertThat(openaiBody).contains("\"dim\":1536", "\"provider\":\"openai\"", "\"model\":\"text-embedding-3-small\"", "\"secret_ref\":\"emb:openai:api_key\"", "\"hybrid\":true");
+    }
+
+    @Test void orgSecretAndCreateOpenAiDatasetHelper() throws Exception {
+        server.enqueue(new MockResponse().setResponseCode(204));
+        server.enqueue(json("{\"id\":\"ds-openai\",\"name\":\"docs\",\"dim\":1536,\"index_type\":\"sable\"}"));
+
+        Dataset dataset = client.datasets().createWithOpenAiApiKey("docs", "sk-test", "small", "custom-ref", true);
+
+        assertThat(dataset.getId()).isEqualTo("ds-openai");
+        RecordedRequest secretReq = server.takeRequest();
+        assertThat(secretReq.getPath()).isEqualTo("/org-secrets/emb%3Aopenai%3Aapi_key");
+        assertThat(secretReq.getBody().readUtf8()).contains("\"api_key\":\"sk-test\"", "\"secret_ref\":\"custom-ref\"", "\"validate\":true", "\"model\":\"text-embedding-3-small\"");
+        RecordedRequest createReq = server.takeRequest();
+        assertThat(createReq.getPath()).isEqualTo("/datasets");
+        assertThat(createReq.getBody().readUtf8()).contains("\"provider\":\"openai\"", "\"model\":\"text-embedding-3-small\"", "\"secret_ref\":\"custom-ref\"", "\"dim\":1536");
+    }
+
+    @Test void orgSecretsClientPutsOpenAiKey() throws Exception {
+        server.enqueue(new MockResponse().setResponseCode(204));
+
+        client.orgSecrets().putOpenAiApiKey("sk-test");
+
+        RecordedRequest req = server.takeRequest();
+        assertThat(req.getPath()).isEqualTo("/org-secrets/emb%3Aopenai%3Aapi_key");
+        assertThat(req.getBody().readUtf8()).contains("\"api_key\":\"sk-test\"", "\"secret_ref\":\"emb:openai:api_key\"");
     }
 
     @Test void insertPreservesNumericVectorIdsAsJsonNumbers() throws Exception {
@@ -203,23 +228,30 @@ class VectorAmpClientTest {
         assertThat(server.takeRequest().getBody().readUtf8()).contains("\"stream\":false");
     }
 
-    @Test void getDeleteSearchAndInsertDatasets() throws Exception {
+    @Test void getDeleteSearchInsertAndDeleteVectorsDatasets() throws Exception {
         server.enqueue(json("{\"id\":\"abc\",\"name\":\"n\"}"));
         server.enqueue(json("{}"));
         server.enqueue(json("{\"results\":[{\"id\":\"v1\",\"score\":0.9,\"metadata\":{\"title\":\"doc\"}}],\"dataset_id\":\"abc\",\"query_time_ms\":3.2}"));
         server.enqueue(json("{\"inserted\":2}"));
+        server.enqueue(json("{\"deleted\":2,\"dataset_id\":\"abc\"}"));
 
         assertThat(client.datasets().get("abc").getName()).isEqualTo("n");
         client.datasets().delete("abc");
         SearchResponse search = client.datasets().search("abc", SearchRequest.text("hello", 5).includeDocuments(false).includeMetadata(true).rerank(true));
         InsertResponse insert = client.datasets().insert("abc", List.of(VectorRecord.of("v1", List.of(0.1, 0.2), Map.of("a", "b")), VectorRecord.of("v2", List.of(0.3, 0.4), null)));
+        DeleteVectorsResponse deleted = client.datasets().deleteVectors("abc", List.of(1L, "v2"), "all");
 
         assertThat(search.getResults().get(0).getScore()).isEqualTo(0.9);
         assertThat(insert.getInserted()).isEqualTo(2);
+        assertThat(deleted.getDeleted()).isEqualTo(2);
         assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/abc");
         assertThat(server.takeRequest().getMethod()).isEqualTo("DELETE");
         assertThat(server.takeRequest().getBody().readUtf8()).contains("query_text", "include_documents", "include_metadata", "\"rerank\":true");
         assertThat(server.takeRequest().getBody().readUtf8()).contains("vectors");
+        RecordedRequest deleteVectors = server.takeRequest();
+        assertThat(deleteVectors.getMethod()).isEqualTo("DELETE");
+        assertThat(deleteVectors.getPath()).isEqualTo("/datasets/abc/vectors");
+        assertThat(deleteVectors.getBody().readUtf8()).contains("\"ids\":[1,\"v2\"]", "\"write_concern\":\"all\"");
     }
 
     @Test void searchTextAliasSendsSingleQueryTextFieldForHybridDatasets() throws Exception {
@@ -276,6 +308,7 @@ class VectorAmpClientTest {
         server.enqueue(json("{\"inserted\":1}"));
         server.enqueue(json("{\"embeddings\":[[0.1,0.2]]}"));
         server.enqueue(json("{\"inserted\":1}"));
+        server.enqueue(json("{\"deleted\":1,\"dataset_id\":\"ds\"}"));
         server.enqueue(json("{\"answer\":\"yes\",\"sources\":[],\"chunks\":[],\"metadata\":{}}"));
         server.enqueue(json("{\"id\":\"src\",\"name\":\"upload\",\"type\":\"file_upload\"}"));
         server.enqueue(json("{\"job_id\":\"job\",\"uploads\":[{\"file_id\":\"f1\",\"file_name\":\"a.txt\",\"upload_url\":\"https://s3\"}]}"));
@@ -287,6 +320,7 @@ class VectorAmpClientTest {
         assertThat(dataset.search("hello").getDatasetId()).isEqualTo("ds");
         assertThat(dataset.insert(List.of(VectorRecord.of("v1", List.of(0.1, 0.2), null))).getInserted()).isEqualTo(1);
         assertThat(dataset.addText("hello").getInserted()).isEqualTo(1);
+        assertThat(dataset.deleteVectors(List.of("v1")).getDeleted()).isEqualTo(1);
         assertThat(dataset.ask("question").getAnswer()).isEqualTo("yes");
         UploadSession upload = dataset.ingestFiles(List.of(FileUpload.of("a.txt", 2, "text/plain")));
         assertThat(upload.getJobId()).isEqualTo("job");
@@ -299,6 +333,10 @@ class VectorAmpClientTest {
         assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/ds/insert");
         assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/ds/embed");
         assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/ds/insert");
+        RecordedRequest datasetDeleteVectors = server.takeRequest();
+        assertThat(datasetDeleteVectors.getMethod()).isEqualTo("DELETE");
+        assertThat(datasetDeleteVectors.getPath()).isEqualTo("/datasets/ds/vectors");
+        assertThat(datasetDeleteVectors.getBody().readUtf8()).contains("\"ids\":[\"v1\"]");
         assertThat(server.takeRequest().getBody().readUtf8()).contains("\"dataset_id\":\"ds\"");
         assertThat(server.takeRequest().getBody().readUtf8()).contains("file_upload", "dataset_id", "file-upload-ds");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/src/upload/init");
