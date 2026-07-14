@@ -41,7 +41,7 @@ jobs:
           deployment_id=$(curl -fsS \
             -H "Authorization: Bearer ${token}" \
             -F bundle=@build/central-bundle.zip \
-            'https://central.sonatype.com/api/v1/publisher/upload?name=vectoramp-java-0.1.0&publishingType=AUTOMATIC')
+            'https://central.sonatype.com/api/v1/publisher/upload?name=vectoramp-java-${{ github.ref_name }}&publishingType=AUTOMATIC')
           echo "deployment_id=${deployment_id}"
 
           for attempt in $(seq 1 60); do
