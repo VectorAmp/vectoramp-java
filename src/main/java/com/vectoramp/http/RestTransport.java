@@ -23,7 +23,7 @@ public final class RestTransport implements Transport {
     private final String userAgent;
 
     public RestTransport(URI baseUri, String apiKey, Duration timeout) {
-        this(baseUri, apiKey, HttpClient.newBuilder().connectTimeout(timeout).followRedirects(HttpClient.Redirect.NORMAL).build(), "vectoramp-java/0.2.0");
+        this(baseUri, apiKey, HttpClient.newBuilder().connectTimeout(timeout).followRedirects(HttpClient.Redirect.NORMAL).build(), "vectoramp-java/0.3.0");
     }
 
     public RestTransport(URI baseUri, String apiKey, HttpClient httpClient, String userAgent) {

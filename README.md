@@ -22,7 +22,7 @@ Gradle:
 repositories { mavenCentral() }
 
 dependencies {
-  implementation 'com.vectoramp:vectoramp-java:0.2.0'
+  implementation 'com.vectoramp:vectoramp-java:0.3.0'
 }
 ```
 
@@ -32,7 +32,7 @@ Maven:
 <dependency>
   <groupId>com.vectoramp</groupId>
   <artifactId>vectoramp-java</artifactId>
-  <version>0.2.0</version>
+  <version>0.3.0</version>
 </dependency>
 ```
 
