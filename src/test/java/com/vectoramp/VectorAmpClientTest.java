@@ -136,6 +136,31 @@ class VectorAmpClientTest {
         assertThat(body).doesNotContain("\"id\":\"42\"").doesNotContain("\"id\":\"7\"");
     }
 
+    @Test void createsAndUpdatesMetadataSchema() throws Exception {
+        List<MetadataSchemaField> schema = List.of(MetadataSchemaField.of("price", MetadataFieldType.F32));
+        server.enqueue(json("{\"id\":\"ds1\",\"name\":\"products\",\"dim\":2560}"));
+        client.datasets().create(CreateDatasetRequest.builder("products").metadataSchemaFields(schema).build());
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"schema\":[{\"name\":\"price\",\"type\":\"f32\"}]");
+
+        server.enqueue(json("{\"id\":\"ds-legacy\",\"name\":\"legacy\",\"dim\":2560}"));
+        JsonNode legacySchema = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree("[{\"name\":\"title\",\"type\":\"string\"}]");
+        client.datasets().create(CreateDatasetRequest.builder("legacy").metadataSchema(legacySchema).build());
+        assertThat(server.takeRequest().getBody().readUtf8())
+                .contains("\"metadata_schema\":[{\"name\":\"title\",\"type\":\"string\"}]");
+
+        server.enqueue(json("{\"id\":\"ds1\",\"name\":\"products\",\"dim\":2560,\"schema_version\":2}"));
+        client.datasets().patchMetadataSchema("ds/1", schema);
+        okhttp3.mockwebserver.RecordedRequest merge = server.takeRequest();
+        assertThat(merge.getMethod()).isEqualTo("PATCH");
+        assertThat(merge.getPath()).isEqualTo("/datasets/ds%2F1/schema");
+        assertThat(merge.getBody().readUtf8()).contains("\"mode\":\"merge\"");
+
+        server.enqueue(json("{\"id\":\"ds1\",\"name\":\"products\",\"dim\":2560,\"schema_version\":3}"));
+        client.datasets().replaceMetadataSchema("ds1", List.of());
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"schema\":[]", "\"mode\":\"replace\"");
+    }
+
     @Test void addTextsPreservesNumericIdsAsJsonNumbers() throws Exception {
         server.enqueue(json("{\"embeddings\":[[0.1,0.2]]}"));
         server.enqueue(json("{\"inserted\":1}"));

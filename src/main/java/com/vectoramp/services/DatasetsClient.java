@@ -106,6 +106,20 @@ public final class DatasetsClient extends ApiService {
         return toDatasetResource(node);
     }
 
+    /** Merges fields into the dataset's typed metadata schema. */
+    public Dataset patchMetadataSchema(String datasetId, java.util.List<MetadataSchemaField> schema) {
+        JsonNode node = patch("/datasets/" + encodePath(datasetId) + "/schema",
+                UpdateMetadataSchemaRequest.merge(schema), JsonNode.class);
+        return toDatasetResource(node);
+    }
+
+    /** Replaces the dataset's complete typed metadata schema. */
+    public Dataset replaceMetadataSchema(String datasetId, java.util.List<MetadataSchemaField> schema) {
+        JsonNode node = patch("/datasets/" + encodePath(datasetId) + "/schema",
+                UpdateMetadataSchemaRequest.replace(schema), JsonNode.class);
+        return toDatasetResource(node);
+    }
+
     /**
      * Stores/updates an OpenAI API key in org secrets, then creates an OpenAI-backed dataset
      * whose embedding config references that secret.

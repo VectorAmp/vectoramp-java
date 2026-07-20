@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,6 +25,7 @@ public class CreateDatasetRequest {
     private final Map<String, Object> metadata;
     private final JsonNode filters;
     private final JsonNode metadataSchema;
+    private final List<MetadataSchemaField> schema;
 
     private CreateDatasetRequest(Builder builder) {
         this.name = GenericSource.requireText(builder.name, "name");
@@ -40,6 +42,7 @@ public class CreateDatasetRequest {
         this.metadata = builder.metadata;
         this.filters = builder.filters;
         this.metadataSchema = builder.metadataSchema;
+        this.schema = builder.schema;
     }
 
     /**
@@ -101,9 +104,13 @@ public class CreateDatasetRequest {
      */
     public JsonNode getFilters() { return filters; }
     /**
-     * @return metadataSchema
+     * @return legacy raw metadata schema
      */
     public JsonNode getMetadataSchema() { return metadataSchema; }
+    /**
+     * @return canonical typed metadata schema
+     */
+    public List<MetadataSchemaField> getSchema() { return schema; }
 
     /** Builder for CreateDatasetRequest inputs. */
     public static final class Builder {
@@ -115,6 +122,7 @@ public class CreateDatasetRequest {
         private Map<String, Object> metadata;
         private JsonNode filters;
         private JsonNode metadataSchema;
+        private List<MetadataSchemaField> schema;
 
         private Builder(String name) {
             this.name = name;
@@ -157,11 +165,17 @@ public class CreateDatasetRequest {
          */
         public Builder filters(JsonNode filters) { this.filters = filters; return this; }
         /**
-         * Sets optional metadata schema.
+         * Sets optional metadata schema using the legacy raw JSON input.
          * @param metadataSchema raw schema JSON
          * @return this builder
          */
         public Builder metadataSchema(JsonNode metadataSchema) { this.metadataSchema = metadataSchema; return this; }
+        /**
+         * Sets the canonical typed metadata schema.
+         * @param schema typed schema fields
+         * @return this builder
+         */
+        public Builder metadataSchemaFields(List<MetadataSchemaField> schema) { this.schema = schema; return this; }
         /**
          * @return immutable create-dataset request
          */
