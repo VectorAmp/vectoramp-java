@@ -114,8 +114,15 @@ class VectorAmpClientTest {
     @Test void createsAndUpdatesMetadataSchema() throws Exception {
         List<MetadataSchemaField> schema = List.of(MetadataSchemaField.of("price", MetadataFieldType.F32));
         server.enqueue(json("{\"id\":\"ds1\",\"name\":\"products\",\"dim\":2560}"));
-        client.datasets().create(CreateDatasetRequest.builder("products").metadataSchema(schema).build());
+        client.datasets().create(CreateDatasetRequest.builder("products").metadataSchemaFields(schema).build());
         assertThat(server.takeRequest().getBody().readUtf8()).contains("\"schema\":[{\"name\":\"price\",\"type\":\"f32\"}]");
+
+        server.enqueue(json("{\"id\":\"ds-legacy\",\"name\":\"legacy\",\"dim\":2560}"));
+        JsonNode legacySchema = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree("[{\"name\":\"title\",\"type\":\"string\"}]");
+        client.datasets().create(CreateDatasetRequest.builder("legacy").metadataSchema(legacySchema).build());
+        assertThat(server.takeRequest().getBody().readUtf8())
+                .contains("\"metadata_schema\":[{\"name\":\"title\",\"type\":\"string\"}]");
 
         server.enqueue(json("{\"id\":\"ds1\",\"name\":\"products\",\"dim\":2560,\"schema_version\":2}"));
         client.datasets().patchMetadataSchema("ds/1", schema);

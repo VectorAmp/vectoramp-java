@@ -127,7 +127,7 @@ List<MetadataSchemaField> schema = List.of(
     MetadataSchemaField.of("category", MetadataFieldType.STRING)
 );
 Dataset products = client.datasets().create(
-    CreateDatasetRequest.builder("products").metadataSchema(schema).build()
+    CreateDatasetRequest.builder("products").metadataSchemaFields(schema).build()
 );
 
 // Merge fields while retaining existing ones, or replace the complete schema.

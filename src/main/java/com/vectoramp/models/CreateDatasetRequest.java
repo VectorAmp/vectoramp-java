@@ -24,6 +24,7 @@ public class CreateDatasetRequest {
     private final Boolean hybrid;
     private final Map<String, Object> metadata;
     private final JsonNode filters;
+    private final JsonNode metadataSchema;
     private final List<MetadataSchemaField> schema;
 
     private CreateDatasetRequest(Builder builder) {
@@ -40,6 +41,7 @@ public class CreateDatasetRequest {
         this.hybrid = builder.hybrid;
         this.metadata = builder.metadata;
         this.filters = builder.filters;
+        this.metadataSchema = builder.metadataSchema;
         this.schema = builder.schema;
     }
 
@@ -102,7 +104,11 @@ public class CreateDatasetRequest {
      */
     public JsonNode getFilters() { return filters; }
     /**
-     * @return metadataSchema
+     * @return legacy raw metadata schema
+     */
+    public JsonNode getMetadataSchema() { return metadataSchema; }
+    /**
+     * @return canonical typed metadata schema
      */
     public List<MetadataSchemaField> getSchema() { return schema; }
 
@@ -115,6 +121,7 @@ public class CreateDatasetRequest {
         private Boolean hybrid;
         private Map<String, Object> metadata;
         private JsonNode filters;
+        private JsonNode metadataSchema;
         private List<MetadataSchemaField> schema;
 
         private Builder(String name) {
@@ -158,11 +165,17 @@ public class CreateDatasetRequest {
          */
         public Builder filters(JsonNode filters) { this.filters = filters; return this; }
         /**
-         * Sets optional metadata schema.
+         * Sets optional metadata schema using the legacy raw JSON input.
          * @param metadataSchema raw schema JSON
          * @return this builder
          */
-        public Builder metadataSchema(List<MetadataSchemaField> schema) { this.schema = schema; return this; }
+        public Builder metadataSchema(JsonNode metadataSchema) { this.metadataSchema = metadataSchema; return this; }
+        /**
+         * Sets the canonical typed metadata schema.
+         * @param schema typed schema fields
+         * @return this builder
+         */
+        public Builder metadataSchemaFields(List<MetadataSchemaField> schema) { this.schema = schema; return this; }
         /**
          * @return immutable create-dataset request
          */
