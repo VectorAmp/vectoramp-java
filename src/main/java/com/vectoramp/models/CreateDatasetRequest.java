@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,7 +24,7 @@ public class CreateDatasetRequest {
     private final Boolean hybrid;
     private final Map<String, Object> metadata;
     private final JsonNode filters;
-    private final JsonNode metadataSchema;
+    private final List<MetadataSchemaField> schema;
 
     private CreateDatasetRequest(Builder builder) {
         this.name = GenericSource.requireText(builder.name, "name");
@@ -39,7 +40,7 @@ public class CreateDatasetRequest {
         this.hybrid = builder.hybrid;
         this.metadata = builder.metadata;
         this.filters = builder.filters;
-        this.metadataSchema = builder.metadataSchema;
+        this.schema = builder.schema;
     }
 
     /**
@@ -103,7 +104,7 @@ public class CreateDatasetRequest {
     /**
      * @return metadataSchema
      */
-    public JsonNode getMetadataSchema() { return metadataSchema; }
+    public List<MetadataSchemaField> getSchema() { return schema; }
 
     /** Builder for CreateDatasetRequest inputs. */
     public static final class Builder {
@@ -114,7 +115,7 @@ public class CreateDatasetRequest {
         private Boolean hybrid;
         private Map<String, Object> metadata;
         private JsonNode filters;
-        private JsonNode metadataSchema;
+        private List<MetadataSchemaField> schema;
 
         private Builder(String name) {
             this.name = name;
@@ -161,7 +162,7 @@ public class CreateDatasetRequest {
          * @param metadataSchema raw schema JSON
          * @return this builder
          */
-        public Builder metadataSchema(JsonNode metadataSchema) { this.metadataSchema = metadataSchema; return this; }
+        public Builder metadataSchema(List<MetadataSchemaField> schema) { this.schema = schema; return this; }
         /**
          * @return immutable create-dataset request
          */

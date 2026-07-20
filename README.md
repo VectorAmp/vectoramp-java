@@ -119,6 +119,22 @@ Dataset bespoke = client.datasets().create(
         .dim(768)
         .build()
 );
+
+// Optional typed metadata schema. Canonical field types are STRING, U32, I32,
+// I64, F32, and F64.
+List<MetadataSchemaField> schema = List.of(
+    MetadataSchemaField.of("price", MetadataFieldType.F32),
+    MetadataSchemaField.of("category", MetadataFieldType.STRING)
+);
+Dataset products = client.datasets().create(
+    CreateDatasetRequest.builder("products").metadataSchema(schema).build()
+);
+
+// Merge fields while retaining existing ones, or replace the complete schema.
+client.datasets().patchMetadataSchema(products.getId(), List.of(
+    MetadataSchemaField.of("inventory", MetadataFieldType.U32)
+));
+client.datasets().replaceMetadataSchema(products.getId(), schema);
 ```
 
 The SDK always sends `index_type: "sable"` and never exposes other index types.
