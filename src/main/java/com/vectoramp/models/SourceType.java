@@ -16,6 +16,10 @@ public final class SourceType {
     public static final String CONFLUENCE = "confluence";
     /** Direct file-upload source type. */
     public static final String FILE_UPLOAD = "file_upload";
+    /** GitHub repository source type, backed by a read-only GitHub App installation. */
+    public static final String GITHUB = "github";
+    /** GitLab project source type. */
+    public static final String GITLAB = "gitlab";
 
     private SourceType() {}
 }

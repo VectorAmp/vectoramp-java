@@ -202,6 +202,99 @@ class VectorAmpClientTest {
                 .containsEntry("api_token", "tok");
     }
 
+    @Test void githubSourceSerializesInstallationAndRepositories() throws Exception {
+        server.enqueue(json("{\"id\":\"gh\",\"name\":\"eng-github\",\"type\":\"github\"}"));
+        server.enqueue(json("{\"id\":\"gh2\",\"name\":\"VectorAmp-Docs\",\"type\":\"github\"}"));
+
+        client.ingestion().createGitHub(GitHubSource.builder("eng-github")
+                .installationId(12345678L)
+                .repositories(List.of("VectorAmp/Ingestion", "VectorAmp/Web"))
+                .refMode("explicit")
+                .refs(List.of("main"))
+                .activeBranchDays(30)
+                .includePullRequests(false)
+                .maxFileSizeBytes(2_000_000)
+                .build());
+        String body = server.takeRequest().getBody().readUtf8();
+        assertThat(body).contains("\"source_type\":\"github\"");
+        assertThat(body).contains("\"installation_id\":12345678");
+        assertThat(body).contains("\"repositories\":[\"VectorAmp/Ingestion\",\"VectorAmp/Web\"]");
+        assertThat(body).contains("\"ref_mode\":\"explicit\"");
+        assertThat(body).contains("\"refs\":[\"main\"]");
+        assertThat(body).contains("\"active_branch_days\":30");
+        assertThat(body).contains("\"include_pull_requests\":false");
+        assertThat(body).contains("\"max_file_size_bytes\":2000000");
+        assertThat(body).contains("\"name\":\"eng-github\"");
+
+        assertThat(client.ingestion().createGitHub(12345678L, "VectorAmp/Docs").getId()).isEqualTo("gh2");
+        assertThat(server.takeRequest().getBody().readUtf8())
+                .contains("\"source_type\":\"github\"", "\"repositories\":[\"VectorAmp/Docs\"]");
+
+        assertThat(SourceType.GITHUB).isEqualTo("github");
+    }
+
+    @Test void githubSourceOmitsUnsetOptionalsAndNeverSendsAToken() {
+        Map<String, Object> config = GitHubSource.of(7L, "owner/repo").toCreateSourceRequest().getConfig();
+        assertThat(config)
+                .containsEntry("installation_id", 7L)
+                .containsEntry("repositories", List.of("owner/repo"));
+        // These all have server-side defaults, so an unset builder must not pin them.
+        assertThat(config).doesNotContainKeys(
+                "ref_mode", "sync_mode", "active_branch_days", "max_file_size_bytes",
+                "include_pull_requests", "include_review_threads", "include_direct_commits");
+        // GitHub authenticates via the App installation, never a token or connection.
+        assertThat(config).doesNotContainKeys("access_token", "connection_id");
+        // The single-repository overload names the source from the repository path.
+        assertThat(GitHubSource.of(7L, "owner/repo").toCreateSourceRequest().getName()).isEqualTo("owner-repo");
+    }
+
+    @Test void gitlabSourceSupportsOauthConnectionAndTokenAuth() throws Exception {
+        server.enqueue(json("{\"id\":\"gl\",\"name\":\"platform\",\"type\":\"gitlab\"}"));
+        server.enqueue(json("{\"id\":\"gl2\",\"name\":\"platform-ingestion\",\"type\":\"gitlab\"}"));
+
+        client.ingestion().createGitLab(GitLabSource.builder("platform")
+                .connection("conn-gl")
+                .groups(List.of("platform"))
+                .includeMergeRequests(true)
+                .build());
+        String body = server.takeRequest().getBody().readUtf8();
+        assertThat(body).contains("\"source_type\":\"gitlab\"");
+        assertThat(body).contains("\"connection_id\":\"conn-gl\"");
+        assertThat(body).contains("\"groups\":[\"platform\"]");
+        assertThat(body).contains("\"include_merge_requests\":true");
+
+        assertThat(client.ingestion().createGitLab("platform/ingestion").getId()).isEqualTo("gl2");
+        assertThat(server.takeRequest().getBody().readUtf8())
+                .contains("\"source_type\":\"gitlab\"", "\"projects\":[\"platform/ingestion\"]");
+
+        // accessToken() implies token auth; gitlabUrl targets a self-managed instance.
+        assertThat(GitLabSource.builder("self-managed")
+                .accessToken("glpat-secret")
+                .gitlabUrl("https://gitlab.example.com")
+                .projects(List.of("infra/tools"))
+                .build()
+                .toCreateSourceRequest().getConfig())
+                .containsEntry("auth_mode", "token")
+                .containsEntry("access_token", "glpat-secret")
+                .containsEntry("gitlab_url", "https://gitlab.example.com");
+
+        assertThat(SourceType.GITLAB).isEqualTo("gitlab");
+    }
+
+    @Test void gitlabSourceOmitsUnsetOptionalsAndUsesMergeRequestNaming() {
+        Map<String, Object> config = GitLabSource.ofGroup("platform").toCreateSourceRequest().getConfig();
+        assertThat(config).containsEntry("groups", List.of("platform"));
+        // auth_mode defaults to oauth and gitlab_url to https://gitlab.com server-side.
+        assertThat(config).doesNotContainKeys(
+                "auth_mode", "gitlab_url", "ref_mode", "sync_mode", "active_branch_days",
+                "max_file_size_bytes", "include_merge_requests", "include_review_threads",
+                "include_direct_commits");
+        // GitLab models merge requests, so the GitHub-only key must never appear.
+        assertThat(config).doesNotContainKey("include_pull_requests");
+        assertThat(GitLabSource.ofProject("platform/ingestion").toCreateSourceRequest().getName())
+                .isEqualTo("platform-ingestion");
+    }
+
     @Test void intelligenceSessionsCrudAndMessages() throws Exception {
         server.enqueue(json("{\"id\":\"sess1\",\"title\":\"chat\",\"status\":\"active\",\"organization_id\":\"org1\"}").setResponseCode(201));
         server.enqueue(json("{\"sessions\":[{\"id\":\"sess1\",\"title\":\"chat\"},{\"id\":\"sess2\",\"title\":\"other\"}]}"));

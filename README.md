@@ -234,7 +234,8 @@ if (docs.getNextCursor() != null) {
 
 ## Ingestion
 
-Typed source helpers cover `web`, `s3`, `gcs`, `gdrive`, `jira`, `confluence`, and `file_upload`.
+Typed source helpers cover `web`, `s3`, `gcs`, `gdrive`, `jira`, `confluence`, `file_upload`,
+`github`, and `gitlab`.
 Use `GenericSource` as an escape hatch for new source types.
 
 ```java
@@ -244,6 +245,10 @@ Source gdrive = client.ingestion().createGoogleDrive("google-drive-folder-id");
 Source jira = client.ingestion().createJira("atlassian-cloud-id");
 Source confluence = client.ingestion().createConfluence("atlassian-cloud-id");
 Source uploadSource = client.ingestion().createFileUpload("dataset-uuid");
+// GitHub reads through a read-only GitHub App installation, so it takes an
+// installation id rather than a token.
+Source github = client.ingestion().createGitHub(12345678L, "VectorAmp/Docs");
+Source gitlab = client.ingestion().createGitLab("platform/ingestion");
 
 // Names and advanced config are available when you need them.
 Source deepWeb = client.ingestion().createWeb(
@@ -255,6 +260,24 @@ Source spaces = client.ingestion().createConfluence(
         .cloudId("atlassian-cloud-id")
         .spaces(java.util.List.of("ENG", "DOCS"))
         .includeAttachments(true)
+        .build()
+);
+
+Source repos = client.ingestion().createGitHub(
+    GitHubSource.builder("eng-github")
+        .installationId(12345678L)
+        .repositories(java.util.List.of("VectorAmp/Ingestion", "VectorAmp/Web"))
+        .refMode("active")   // "active" (default) | "default" | "explicit"
+        .build()
+);
+
+// GitLab takes a saved OAuth connection, or an access token for PAT auth, and
+// can target a self-managed instance.
+Source projects = client.ingestion().createGitLab(
+    GitLabSource.builder("platform-gitlab")
+        .accessToken(System.getenv("GITLAB_TOKEN"))
+        .gitlabUrl("https://gitlab.example.com")
+        .groups(java.util.List.of("platform"))
         .build()
 );
 
@@ -366,7 +389,7 @@ Both access styles work everywhere the language allows: `client.datasets().searc
 |---|---|
 | `listSources(limit?, offset?)` / `getSource(id)` | pagination / id |
 | `createSource(CreateSourceRequest \| IngestionSourceInput)` | generic create |
-| `createWeb/createS3/createGCS/createGoogleDrive/createJira/createConfluence/createFileUpload(...)` | typed convenience creators |
+| `createWeb/createS3/createGCS/createGoogleDrive/createJira/createConfluence/createFileUpload/createGitHub/createGitLab(...)` | typed convenience creators |
 | `startJob(sourceId, datasetId, pipelineId?)` | start ingestion |
 | `listJobs(datasetId?, limit?, offset?)` / `getJob(id)` / `retryJob(id)` | jobs |
 | `initializeUpload(sourceId, files)` / `completeUpload(sourceId, jobId, fileIds)` | presigned upload flow |
@@ -377,8 +400,10 @@ Both access styles work everywhere the language allows: `client.datasets().searc
 
 ### Source helpers
 `WebSource`, `S3Source`, `GCSSource`, `GoogleDriveSource`, `JiraSource`, `ConfluenceSource`,
-`FileUploadSource`, and `GenericSource` provide `.of(...)`/`.builder(...)` factories. Each maps to
-its API `source_type` (`web`, `s3`, `gcs`, `gdrive`, `jira`, `confluence`, `file_upload`).
+`FileUploadSource`, `GitHubSource`, `GitLabSource`, and `GenericSource` provide
+`.of(...)`/`.builder(...)` factories. Each maps to its API `source_type` (`web`, `s3`, `gcs`,
+`gdrive`, `jira`, `confluence`, `file_upload`, `github`, `gitlab`). `GitLabSource` uses
+`.ofProject(...)`/`.ofGroup(...)` since a GitLab source is scoped by project or group.
 
 ## Transport architecture
 

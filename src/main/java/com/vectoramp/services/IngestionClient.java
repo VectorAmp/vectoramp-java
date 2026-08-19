@@ -113,6 +113,39 @@ public final class IngestionClient extends ApiService {
     public Source createJira(String cloudId) { return createJira(JiraSource.of(cloudId)); }
 
     /**
+     * Creates a GitHub source.
+     * @param source typed GitHub source input
+     * @return created source
+     */
+    public Source createGitHub(GitHubSource source) { return createSource(source); }
+
+    /**
+     * Creates a GitHub source for a single repository, named from that repository.
+     * @param installationId GitHub App installation id
+     * @param repository repository full name, for example {@code VectorAmp/Docs}
+     * @return created source
+     */
+    public Source createGitHub(long installationId, String repository) {
+        return createGitHub(GitHubSource.of(installationId, repository));
+    }
+
+    /**
+     * Creates a GitLab source.
+     * @param source typed GitLab source input
+     * @return created source
+     */
+    public Source createGitLab(GitLabSource source) { return createSource(source); }
+
+    /**
+     * Creates a GitLab source for a single project, named from that project path.
+     * @param project project full path, for example {@code platform/ingestion}
+     * @return created source
+     */
+    public Source createGitLab(String project) {
+        return createGitLab(GitLabSource.ofProject(project));
+    }
+
+    /**
      * Creates a Confluence source.
      * @param source typed Confluence source input
      * @return created source
