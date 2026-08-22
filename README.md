@@ -316,6 +316,12 @@ AskResponse scoped = client.intelligence().query(
     AskRequest.of("Summarize the roadmap").datasetId("dataset-uuid")
 );
 
+// Scoped to several datasets. datasetId adds to the scope, so repeating it
+// widens it; datasetIds replaces the whole scope.
+AskResponse across = client.intelligence().query(
+    AskRequest.of("Which contracts renew in Q4?").datasetIds("contracts-uuid", "invoices-uuid")
+);
+
 // Streaming SSE.
 try (java.util.stream.Stream<SseEvent> events = client.askStream(
     AskRequest.of("Summarize the roadmap").datasetId("dataset-uuid")
@@ -376,7 +382,7 @@ Both access styles work everywhere the language allows: `client.datasets().searc
 ### `client.intelligence()`
 | Method | Args |
 |---|---|
-| `ask(query)` / `query(query)` | `query` (String or `AskRequest`); `top_k` default 5, sources on, `all` datasets |
+| `ask(query)` / `query(query)` | `query` (String or `AskRequest`); `top_k` default 5, sources on, every visible dataset when `datasetIds` is unset |
 | `askStream(query)` / `stream(query)` | returns `Stream<SseEvent>` |
 | `createSession(title \| SessionCreateRequest)` | optional title/workspace/dataset/metadata |
 | `listSessions(limit?)` | returns `List<IntelligenceSession>` |

@@ -455,7 +455,8 @@ class VectorAmpClientTest {
         assertThat(datasetDeleteVectors.getMethod()).isEqualTo("DELETE");
         assertThat(datasetDeleteVectors.getPath()).isEqualTo("/datasets/ds/vectors");
         assertThat(datasetDeleteVectors.getBody().readUtf8()).contains("\"ids\":[\"v1\"]");
-        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"dataset_id\":\"ds\"");
+        // dataset.ask scopes to its own id via dataset_ids; the singular field is retired.
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"dataset_ids\":[\"ds\"]");
         assertThat(server.takeRequest().getBody().readUtf8()).contains("file_upload", "dataset_id", "file-upload-ds");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/src/upload/init");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/src/upload/complete");
@@ -631,10 +632,64 @@ class VectorAmpClientTest {
 
         assertThat(events).hasSize(2);
         assertThat(events.get(0).getChunkType()).isEqualTo("text");
-        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"stream\":false");
+        String askBody = server.takeRequest().getBody().readUtf8();
+        assertThat(askBody).contains("\"stream\":false");
+        // allDatasets() clears the scope: an absent dataset_ids is how the API says
+        // "every dataset you can see", and the retired dataset_id now draws a 400.
+        assertThat(askBody).doesNotContain("dataset_ids");
+        assertThat(askBody).doesNotContain("dataset_id");
         RecordedRequest stream = server.takeRequest();
         assertThat(stream.getHeader("Accept")).isEqualTo("text/event-stream");
         assertThat(stream.getBody().readUtf8()).contains("\"stream\":true");
+    }
+
+    @Test void askScopesToEveryRequestedDataset() throws Exception {
+        server.enqueue(json("{\"answer\":\"across three\"}"));
+
+        assertThat(client.ask(AskRequest.of("why?").datasetIds("ds_1", "ds_2", "ds_3")).getAnswer())
+                .isEqualTo("across three");
+
+        String body = server.takeRequest().getBody().readUtf8();
+        assertThat(body).contains("\"dataset_ids\":[\"ds_1\",\"ds_2\",\"ds_3\"]");
+        assertThat(body).doesNotContain("\"dataset_id\"");
+    }
+
+    @Test void repeatedDatasetIdWidensTheScope() throws Exception {
+        server.enqueue(json("{\"answer\":\"ok\"}"));
+
+        client.ask(AskRequest.of("why?").datasetId("ds_1").datasetId("ds_2"));
+
+        assertThat(server.takeRequest().getBody().readUtf8())
+                .contains("\"dataset_ids\":[\"ds_1\",\"ds_2\"]");
+    }
+
+    @Test void emptyAndAllScopesOmitDatasetIds() throws Exception {
+        // datasetIds is optional and unset by default. An empty scope, or one made only of the
+        // retired "all" sentinel, must leave the field off the wire rather than send [].
+        List<AskRequest> requests = List.of(
+                AskRequest.of("why?"),
+                AskRequest.of("why?").datasetIds(List.of()),
+                AskRequest.of("why?").datasetId("all"),
+                AskRequest.of("why?").datasetIds("", "   "),
+                AskRequest.of("why?").datasetId("ds_1").allDatasets());
+
+        for (AskRequest request : requests) {
+            server.enqueue(json("{\"answer\":\"ok\"}"));
+            client.ask(request);
+            String body = server.takeRequest().getBody().readUtf8();
+            assertThat(body).doesNotContain("dataset_ids");
+            assertThat(body).doesNotContain("dataset_id");
+        }
+    }
+
+    @Test void datasetAskScopesToItsOwnId() throws Exception {
+        server.enqueue(json("{\"id\":\"ds_self\",\"name\":\"docs\"}"));
+        server.enqueue(json("{\"answer\":\"ok\"}"));
+
+        client.datasets().get("ds_self").ask("why?");
+
+        server.takeRequest();
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("\"dataset_ids\":[\"ds_self\"]");
     }
 
     @Test void schedulesCrudAndTrigger() throws Exception {
