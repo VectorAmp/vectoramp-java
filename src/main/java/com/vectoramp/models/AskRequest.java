@@ -1,12 +1,23 @@
 package com.vectoramp.models;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-/** Intelligence query request. Optional fields omitted from JSON use API defaults. */
+/**
+ * Intelligence query request. Optional fields omitted from JSON use API defaults.
+ *
+ * <p>The dataset scope is {@code datasetIds}, a list. Leaving it unset searches every dataset the
+ * caller can see. The singular {@code dataset_id} field is retired: the API answers any request
+ * carrying it with a 400 naming {@code dataset_ids} as the replacement, and the {@code "all"}
+ * sentinel it carried is expressed by leaving the scope unset.
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class AskRequest {
     private String query;
-    private String datasetId;
+    private List<String> datasetIds;
     private Integer topK;
     private List<Message> conversationHistory;
     private Boolean stream;
@@ -29,16 +40,44 @@ public class AskRequest {
      */
     public static AskRequest of(String query) { return new AskRequest(query); }
     /**
-     * Scopes the query to one dataset.
+     * Adds one dataset to the query scope. Repeating this widens the scope rather than replacing it.
+     *
      * @param datasetId dataset ID
      * @return this request
      */
-    public AskRequest datasetId(String datasetId) { this.datasetId = datasetId; return this; }
+    public AskRequest datasetId(String datasetId) {
+        if (datasetIds == null) datasetIds = new ArrayList<>();
+        datasetIds.add(datasetId);
+        return this;
+    }
     /**
-     * Scopes the query to all accessible datasets.
+     * Sets the whole query scope, replacing anything set before it.
+     *
+     * @param datasetIds dataset IDs
      * @return this request
      */
-    public AskRequest allDatasets() { this.datasetId = "all"; return this; }
+    public AskRequest datasetIds(List<String> datasetIds) {
+        this.datasetIds = datasetIds == null ? null : new ArrayList<>(datasetIds);
+        return this;
+    }
+    /**
+     * Sets the whole query scope, replacing anything set before it.
+     *
+     * @param datasetIds dataset IDs
+     * @return this request
+     */
+    public AskRequest datasetIds(String... datasetIds) {
+        return datasetIds(datasetIds == null ? null : Arrays.asList(datasetIds));
+    }
+    /**
+     * Clears the scope so the query reaches every accessible dataset.
+     *
+     * <p>That is what an absent {@code dataset_ids} means to the API; the old {@code "all"}
+     * sentinel is retired.
+     *
+     * @return this request
+     */
+    public AskRequest allDatasets() { this.datasetIds = null; return this; }
     /**
      * Sets maximum retrieval result count.
      * @param topK result count
@@ -74,9 +113,25 @@ public class AskRequest {
      */
     public String getQuery() { return query; }
     /**
-     * @return datasetId
+     * The dataset scope as it goes on the wire.
+     *
+     * <p>Blank ids and the retired {@code "all"} sentinel are dropped, and an empty scope becomes
+     * {@code null} so the field is omitted — sending {@code []} would be a narrower, different
+     * request than "every dataset you can see".
+     *
+     * @return dataset IDs, or null when unscoped
      */
-    public String getDatasetId() { return datasetId; }
+    public List<String> getDatasetIds() {
+        if (datasetIds == null) return null;
+        List<String> scope = new ArrayList<>();
+        for (String id : datasetIds) {
+            if (id == null) continue;
+            String trimmed = id.trim();
+            if (trimmed.isEmpty() || "all".equals(trimmed)) continue;
+            scope.add(trimmed);
+        }
+        return scope.isEmpty() ? null : scope;
+    }
     /**
      * @return topK
      */

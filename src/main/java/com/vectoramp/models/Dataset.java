@@ -259,11 +259,11 @@ public class Dataset {
     /**
      * Runs a non-streaming intelligence query scoped to this dataset.
      *
-     * @param request query request; datasetId is overwritten with this dataset ID
+     * @param request query request; the dataset scope is replaced with this dataset ID
      * @return answer and optional source/chunk metadata
      */
     public AskResponse ask(AskRequest request) {
-        Objects.requireNonNull(request, "request").datasetId(requireId());
+        Objects.requireNonNull(request, "request").datasetIds(requireId());
         return requireIntelligence().ask(request);
     }
 
@@ -280,11 +280,11 @@ public class Dataset {
     /**
      * Runs an intelligence query scoped to this dataset as server-sent events.
      *
-     * @param request query request; datasetId is overwritten with this dataset ID
+     * @param request query request; the dataset scope is replaced with this dataset ID
      * @return ordered event stream; close it if not fully consumed
      */
     public Stream<SseEvent> askStream(AskRequest request) {
-        Objects.requireNonNull(request, "request").datasetId(requireId());
+        Objects.requireNonNull(request, "request").datasetIds(requireId());
         return requireIntelligence().askStream(request);
     }
 
