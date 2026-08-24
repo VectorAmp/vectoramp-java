@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'com.vectoramp'
-version = '0.5.0'
+version = '0.5.1'
 
 description = 'Java SDK for the VectorAmp API'
 
