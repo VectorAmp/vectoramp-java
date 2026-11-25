@@ -313,8 +313,20 @@ public final class IngestionClient extends ApiService {
      * @return upload session containing job ID and pre-signed upload targets
      */
     public UploadSession initializeUpload(String sourceId, List<FileUpload> files) {
+        return initializeUpload(sourceId, files, null);
+    }
+
+    /**
+     * Initializes direct file upload with an optional dataset-local security scope.
+     * @param sourceId file-upload source ID
+     * @param files file descriptors
+     * @param securityScopeKey active dataset-local external key, or null for the dataset default
+     * @return upload session
+     */
+    public UploadSession initializeUpload(String sourceId, List<FileUpload> files, String securityScopeKey) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("files", files);
+        if (securityScopeKey != null) body.put("security_scope_key", securityScopeKey);
         return post("/ingestion/sources/" + encodePath(sourceId) + "/upload/init", body, UploadSession.class).attachSourceId(sourceId);
     }
 

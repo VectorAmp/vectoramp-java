@@ -297,7 +297,11 @@ public final class DatasetsClient extends ApiService {
             Object id = request.getIds() != null && i < request.getIds().size() && request.getIds().get(i) != null
                     ? request.getIds().get(i)
                     : UUID.randomUUID().toString();
-            vectors.add(VectorRecord.ofId(id, embeddings.get(i), metadata));
+            VectorRecord vector = VectorRecord.ofId(id, embeddings.get(i), metadata);
+            if (request.getSecurityScopeKey() != null) {
+                vector = vector.withSecurityScopeKey(request.getSecurityScopeKey());
+            }
+            vectors.add(vector);
         }
         return insert(datasetId, vectors);
     }

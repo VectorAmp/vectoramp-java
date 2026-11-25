@@ -338,6 +338,12 @@ public class Dataset {
         return requireIngestion().initializeUpload(source.getId(), files);
     }
 
+    /** Creates a file-upload source and assigns the upload job to a security scope. */
+    public UploadSession ingestFiles(List<FileUpload> files, String securityScopeKey) {
+        Source source = requireIngestion().createFileUploadSource(requireId());
+        return requireIngestion().initializeUpload(source.getId(), files, securityScopeKey);
+    }
+
     /**
      * Creates a named file-upload source for this dataset and initializes an upload session.
      *
@@ -348,6 +354,12 @@ public class Dataset {
     public UploadSession ingestFiles(String sourceName, List<FileUpload> files) {
         Source source = requireIngestion().createFileUploadSource(requireId(), sourceName);
         return requireIngestion().initializeUpload(source.getId(), files);
+    }
+
+    /** Creates a named file-upload source and assigns the upload job to a security scope. */
+    public UploadSession ingestFiles(String sourceName, List<FileUpload> files, String securityScopeKey) {
+        Source source = requireIngestion().createFileUploadSource(requireId(), sourceName);
+        return requireIngestion().initializeUpload(source.getId(), files, securityScopeKey);
     }
 
     /**

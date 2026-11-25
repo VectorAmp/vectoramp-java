@@ -6,6 +6,11 @@ This project follows semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Add optional dataset security-scope support to vector inserts, `addTexts`, file-upload
+  initialization, and ingestion schedule create/update requests.
+
 ### Changed
 
 - **Breaking:** `AskRequest`'s dataset scope is now `datasetIds` (a `List<String>` serialized as

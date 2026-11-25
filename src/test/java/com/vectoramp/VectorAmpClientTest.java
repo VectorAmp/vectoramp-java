@@ -166,11 +166,12 @@ class VectorAmpClientTest {
         server.enqueue(json("{\"inserted\":1}"));
 
         client.datasets().addTexts("ds", AddTextsRequest.ofNumericIds(
-                List.of("hello"), List.of(99L), null));
+                List.of("hello"), List.of(99L), null).withSecurityScopeKey("tenant-acme"));
 
         assertThat(server.takeRequest().getPath()).isEqualTo("/datasets/ds/embed");
         String insertBody = server.takeRequest().getBody().readUtf8();
-        assertThat(insertBody).contains("\"id\":99").doesNotContain("\"id\":\"99\"");
+        assertThat(insertBody).contains("\"id\":99", "\"security_scope_key\":\"tenant-acme\"")
+                .doesNotContain("\"id\":\"99\"");
     }
 
     @Test void confluenceSourceSerializesConfluenceType() throws Exception {
@@ -475,7 +476,8 @@ class VectorAmpClientTest {
         assertThat(client.ingestion().createFileUploadSource("ds").getId()).isEqualTo("s1");
         assertThat(client.ingestion().startJob("s1", "ds").getJobId()).isEqualTo("j1");
         assertThat(client.ingestion().retryJob("j1").getJobId()).isEqualTo("j3");
-        UploadSession upload = client.ingestion().initializeUpload("s1", List.of(FileUpload.of("a.txt", 2, "text/plain")));
+        UploadSession upload = client.ingestion().initializeUpload(
+                "s1", List.of(FileUpload.of("a.txt", 2, "text/plain")), "tenant-acme");
         assertThat(upload.getSourceId()).isEqualTo("s1");
         assertThat(upload.getUploads().get(0).getFileId()).isEqualTo("f1");
         assertThat(client.ingestion().completeUpload("s1", "j2", List.of("f1")).getStatus()).isEqualTo("pending");
@@ -484,7 +486,9 @@ class VectorAmpClientTest {
         assertThat(server.takeRequest().getBody().readUtf8()).contains("file_upload", "dataset_id", "file-upload-ds");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/jobs");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/jobs/j1/retry");
-        assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/s1/upload/init");
+        RecordedRequest initUpload = server.takeRequest();
+        assertThat(initUpload.getPath()).isEqualTo("/ingestion/sources/s1/upload/init");
+        assertThat(initUpload.getBody().readUtf8()).contains("\"security_scope_key\":\"tenant-acme\"");
         assertThat(server.takeRequest().getPath()).isEqualTo("/ingestion/sources/s1/upload/complete");
     }
 
@@ -714,6 +718,7 @@ class VectorAmpClientTest {
                 .datasetId("ds_1")
                 .cron("0 0 * * *")
                 .timezone("UTC")
+                .securityScope(new SecurityScopeSelection("tenant-acme"))
                 .build());
         assertThat(created.getId()).isEqualTo("sch_2");
         RecordedRequest createReq = server.takeRequest();
@@ -723,6 +728,7 @@ class VectorAmpClientTest {
         assertThat(createBody).contains("\"dataset_id\":\"ds_1\"");
         assertThat(createBody).contains("\"cron\":\"0 0 * * *\"");
         assertThat(createBody).contains("\"timezone\":\"UTC\"");
+        assertThat(createBody).contains("\"security_scope\":{\"external_key\":\"tenant-acme\"}");
 
         Schedule updated = client.schedules().update("sch_2", UpdateScheduleRequest.builder().enabled(false).build());
         assertThat(updated.isEnabled()).isFalse();

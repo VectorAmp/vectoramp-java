@@ -14,6 +14,7 @@ public class CreateScheduleRequest {
     private final Boolean enabled;
     private final String name;
     private final Map<String, Object> metadata;
+    private final SecurityScopeSelection securityScope;
 
     private CreateScheduleRequest(Builder b) {
         this.sourceId = b.sourceId;
@@ -24,6 +25,7 @@ public class CreateScheduleRequest {
         this.enabled = b.enabled;
         this.name = b.name;
         this.metadata = b.metadata;
+        this.securityScope = b.securityScope;
     }
 
     /** Starts a builder. */
@@ -45,6 +47,7 @@ public class CreateScheduleRequest {
     public String getName() { return name; }
     /** @return metadata (nullable) */
     public Map<String, Object> getMetadata() { return metadata; }
+    public SecurityScopeSelection getSecurityScope() { return securityScope; }
 
     /** Builder for {@link CreateScheduleRequest}. */
     public static final class Builder {
@@ -56,6 +59,7 @@ public class CreateScheduleRequest {
         private Boolean enabled;
         private String name;
         private Map<String, Object> metadata;
+        private SecurityScopeSelection securityScope;
 
         /** @param sourceId source id; required */
         public Builder sourceId(String sourceId) { this.sourceId = sourceId; return this; }
@@ -73,6 +77,8 @@ public class CreateScheduleRequest {
         public Builder name(String name) { this.name = name; return this; }
         /** @param metadata metadata blob */
         public Builder metadata(Map<String, Object> metadata) { this.metadata = metadata; return this; }
+        /** @param securityScope scope assigned to writes from each scheduled run */
+        public Builder securityScope(SecurityScopeSelection securityScope) { this.securityScope = securityScope; return this; }
         /** @return the built request */
         public CreateScheduleRequest build() { return new CreateScheduleRequest(this); }
     }
