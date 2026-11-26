@@ -301,6 +301,24 @@ UploadSession session = dataset.ingestFiles(java.util.List.of(
 dataset.completeUpload(session);
 ```
 
+## Dataset permissions
+
+Assign writes to an active dataset-local scope by external key. Omit the key to use the dataset
+default.
+
+```java
+VectorRecord vector = VectorRecord.of("v1", List.of(0.1, 0.2), null)
+        .withSecurityScopeKey("tenant-acme");
+client.datasets().insert(datasetId, List.of(vector));
+
+client.datasets().addTexts(datasetId,
+        AddTextsRequest.of("private handbook").withSecurityScopeKey("tenant-acme"));
+client.ingestion().initializeUpload(sourceId, files, "tenant-acme");
+```
+
+Use `.securityScope(new SecurityScopeSelection("tenant-acme"))` on schedule builders. Search is
+filtered automatically from the caller's effective permissions.
+
 ## Intelligence / RAG
 
 `ask` defaults to `top_k=5`, includes sources, and queries all accessible datasets when unscoped.

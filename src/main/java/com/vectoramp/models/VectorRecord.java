@@ -17,6 +17,7 @@ public class VectorRecord {
     private final Object id;
     private final List<Double> values;
     private final Map<String, Object> metadata;
+    private final String securityScopeKey;
 
     /**
      * Creates a vector record with a string id.
@@ -25,7 +26,7 @@ public class VectorRecord {
      * @param metadata optional metadata
      */
     public VectorRecord(String id, List<Double> values, Map<String, Object> metadata) {
-        this((Object) id, values, metadata);
+        this((Object) id, values, metadata, null);
     }
 
     /**
@@ -35,13 +36,14 @@ public class VectorRecord {
      * @param metadata optional metadata
      */
     public VectorRecord(long id, List<Double> values, Map<String, Object> metadata) {
-        this((Object) id, values, metadata);
+        this((Object) id, values, metadata, null);
     }
 
-    private VectorRecord(Object id, List<Double> values, Map<String, Object> metadata) {
+    private VectorRecord(Object id, List<Double> values, Map<String, Object> metadata, String securityScopeKey) {
         this.id = id;
         this.values = values;
         this.metadata = metadata;
+        this.securityScopeKey = securityScopeKey;
     }
 
     /**
@@ -52,7 +54,7 @@ public class VectorRecord {
      * @return vector record
      */
     public static VectorRecord of(String id, List<Double> values, Map<String, Object> metadata) {
-        return new VectorRecord(id, values, metadata);
+        return new VectorRecord(id, values, metadata, null);
     }
 
     /**
@@ -63,7 +65,7 @@ public class VectorRecord {
      * @return vector record
      */
     public static VectorRecord of(long id, List<Double> values, Map<String, Object> metadata) {
-        return new VectorRecord(id, values, metadata);
+        return new VectorRecord(id, values, metadata, null);
     }
 
     /**
@@ -79,7 +81,12 @@ public class VectorRecord {
      * @return vector record
      */
     public static VectorRecord ofId(Object id, List<Double> values, Map<String, Object> metadata) {
-        return new VectorRecord(id, values, metadata);
+        return new VectorRecord(id, values, metadata, null);
+    }
+
+    /** Returns a copy assigned to the supplied dataset-local security scope. */
+    public VectorRecord withSecurityScopeKey(String securityScopeKey) {
+        return new VectorRecord(id, values, metadata, securityScopeKey);
     }
 
     /**
@@ -97,4 +104,6 @@ public class VectorRecord {
      * @return metadata
      */
     public Map<String, Object> getMetadata() { return metadata; }
+    /** @return dataset-local external security scope key, or null for the dataset default */
+    public String getSecurityScopeKey() { return securityScopeKey; }
 }

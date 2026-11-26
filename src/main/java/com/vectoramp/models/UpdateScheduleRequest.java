@@ -12,6 +12,7 @@ public class UpdateScheduleRequest {
     private final Boolean enabled;
     private final String name;
     private final Map<String, Object> metadata;
+    private final SecurityScopeSelection securityScope;
 
     private UpdateScheduleRequest(Builder b) {
         this.cron = b.cron;
@@ -20,6 +21,7 @@ public class UpdateScheduleRequest {
         this.enabled = b.enabled;
         this.name = b.name;
         this.metadata = b.metadata;
+        this.securityScope = b.securityScope;
     }
 
     /** Starts a builder. */
@@ -37,6 +39,7 @@ public class UpdateScheduleRequest {
     public String getName() { return name; }
     /** @return metadata */
     public Map<String, Object> getMetadata() { return metadata; }
+    public SecurityScopeSelection getSecurityScope() { return securityScope; }
 
     /** Builder for {@link UpdateScheduleRequest}. */
     public static final class Builder {
@@ -46,6 +49,7 @@ public class UpdateScheduleRequest {
         private Boolean enabled;
         private String name;
         private Map<String, Object> metadata;
+        private SecurityScopeSelection securityScope;
 
         /** @param cron cron expression */
         public Builder cron(String cron) { this.cron = cron; return this; }
@@ -59,6 +63,8 @@ public class UpdateScheduleRequest {
         public Builder name(String name) { this.name = name; return this; }
         /** @param metadata metadata blob */
         public Builder metadata(Map<String, Object> metadata) { this.metadata = metadata; return this; }
+        /** @param securityScope scope assigned to subsequent scheduled writes */
+        public Builder securityScope(SecurityScopeSelection securityScope) { this.securityScope = securityScope; return this; }
         /** @return the built request */
         public UpdateScheduleRequest build() { return new UpdateScheduleRequest(this); }
     }

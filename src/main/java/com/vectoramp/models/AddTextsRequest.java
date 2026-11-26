@@ -9,6 +9,7 @@ public class AddTextsRequest {
     private final List<String> texts;
     private final List<Object> ids;
     private final List<Map<String, Object>> metadata;
+    private final String securityScopeKey;
 
     /**
      * Creates an add-texts request.
@@ -18,9 +19,23 @@ public class AddTextsRequest {
      * @param metadata optional per-text metadata merged after metadata.text
      */
     public AddTextsRequest(List<String> texts, List<?> ids, List<Map<String, Object>> metadata) {
+        this(texts, ids, metadata, null);
+    }
+
+    private AddTextsRequest(List<String> texts, List<?> ids, List<Map<String, Object>> metadata, String securityScopeKey) {
         this.texts = texts;
         this.ids = ids == null ? null : new ArrayList<>(ids);
         this.metadata = metadata;
+        this.securityScopeKey = securityScopeKey;
+    }
+
+    /**
+     * Returns a copy assigning every generated vector to the supplied security scope.
+     * @param securityScopeKey active dataset-local external key
+     * @return copied request with the scope key
+     */
+    public AddTextsRequest withSecurityScopeKey(String securityScopeKey) {
+        return new AddTextsRequest(texts, ids, metadata, securityScopeKey);
     }
 
     /**
@@ -77,4 +92,6 @@ public class AddTextsRequest {
      * @return metadata
      */
     public List<Map<String, Object>> getMetadata() { return metadata; }
+    /** @return dataset-local scope key, or null to use the dataset default */
+    public String getSecurityScopeKey() { return securityScopeKey; }
 }
